@@ -1,0 +1,397 @@
+:root {
+  --teal-950: #073b3e;
+  --teal-800: #0a6268;
+  --teal-600: #0a7f83;
+  --aqua-300: #77d7cf;
+  --mint-100: #e8fbf7;
+  --gold-500: #d8a83f;
+  --coral-500: #e2705b;
+  --ink: #102326;
+  --muted: #5b6f73;
+  --line: #d9e7e5;
+  --paper: #f6fbfa;
+  --white: #ffffff;
+  --shadow: 0 14px 36px rgba(7, 59, 62, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--paper);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  min-height: 42px;
+  border: 1px solid var(--teal-600);
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  background: var(--teal-600);
+  color: var(--white);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--teal-800);
+}
+
+.secondary,
+.ghost-button {
+  background: var(--white);
+  color: var(--teal-800);
+  box-shadow: none;
+}
+
+.ghost-button {
+  width: 100%;
+  margin-top: auto;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background:
+    linear-gradient(145deg, rgba(119, 215, 207, .28), transparent 42%),
+    linear-gradient(330deg, rgba(216, 168, 63, .18), transparent 38%),
+    var(--paper);
+}
+
+.login-card {
+  width: min(420px, 100%);
+  padding: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 1rem;
+}
+
+.login-card img {
+  width: 220px;
+  max-width: 100%;
+}
+
+.login-card h1,
+.topbar h1,
+.panel h2 {
+  margin: 0;
+  color: var(--teal-950);
+  letter-spacing: 0;
+}
+
+.login-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.login-card input,
+.filters input,
+.patient-form input,
+.patient-form select,
+.patient-form textarea {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  color: var(--ink);
+  background: var(--white);
+}
+
+.patient-form textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: 1.25rem;
+  border-right: 1px solid var(--line);
+  background: var(--white);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.sidebar img {
+  width: 210px;
+  max-width: 100%;
+}
+
+.sidebar nav {
+  display: grid;
+  gap: .4rem;
+}
+
+.sidebar a {
+  padding: .75rem .85rem;
+  border-radius: 8px;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.sidebar a:hover {
+  background: var(--mint-100);
+  color: var(--teal-800);
+}
+
+.workspace {
+  padding: 1.5rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.topbar,
+.panel-heading,
+.form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.eyebrow {
+  margin: 0 0 .4rem;
+  color: var(--teal-600);
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.metrics,
+.pipeline {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.metrics article,
+.status-card,
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: 0 8px 20px rgba(7, 59, 62, .06);
+}
+
+.metrics article {
+  padding: 1.1rem;
+}
+
+.metrics span,
+.status-card span,
+td small {
+  display: block;
+  color: var(--muted);
+  font-size: .88rem;
+}
+
+.metrics strong {
+  display: block;
+  margin-top: .35rem;
+  font-size: 2rem;
+  color: var(--teal-950);
+}
+
+.pipeline {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.status-card {
+  min-height: 92px;
+  padding: 1rem;
+  color: var(--ink);
+  text-align: left;
+  background: var(--white);
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+.status-card.active {
+  border-color: var(--teal-600);
+  background: var(--mint-100);
+}
+
+.status-card strong {
+  display: block;
+  margin-top: .5rem;
+  font-size: 1.6rem;
+  color: var(--teal-800);
+}
+
+.panel {
+  padding: 1.25rem;
+}
+
+.patient-form {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.patient-form label {
+  display: grid;
+  gap: .4rem;
+  color: var(--teal-950);
+  font-weight: 800;
+}
+
+.checkbox {
+  align-content: center;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  min-height: 70px;
+}
+
+.checkbox input {
+  width: 18px;
+  min-height: 18px;
+}
+
+.wide,
+.form-actions {
+  grid-column: 1 / -1;
+}
+
+.form-actions {
+  justify-content: flex-start;
+}
+
+.form-actions span,
+.login-card small {
+  color: var(--teal-800);
+  font-weight: 700;
+}
+
+.filters {
+  display: flex;
+  gap: .6rem;
+  min-width: min(520px, 100%);
+}
+
+.table-wrap {
+  width: 100%;
+  margin-top: 1rem;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 880px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: .85rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  color: var(--muted);
+  font-size: .82rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+td strong {
+  display: block;
+  color: var(--teal-950);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: .25rem .55rem;
+  border-radius: 999px;
+  background: var(--mint-100);
+  color: var(--teal-800);
+  font-weight: 800;
+  font-size: .82rem;
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .sidebar nav {
+    grid-auto-flow: column;
+    overflow-x: auto;
+  }
+
+  .ghost-button {
+    width: auto;
+    margin-left: auto;
+  }
+
+  .pipeline,
+  .patient-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace {
+    padding: 1rem;
+  }
+
+  .topbar,
+  .panel-heading,
+  .filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .metrics,
+  .pipeline,
+  .patient-form {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar img {
+    width: 160px;
+  }
+}

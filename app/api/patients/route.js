@@ -1,0 +1,72 @@
+import { NextResponse } from "next/server";
+import { getSql } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
+import { normalizePatient } from "@/lib/patient-fields";
+import { STATUSES } from "@/lib/status";
+
+export async function GET(request) {
+  if (!(await requireAuth())) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+
+  const sql = getSql();
+  const { searchParams } = new URL(request.url);
+  const q = searchParams.get("q")?.trim();
+  const status = searchParams.get("status")?.trim();
+  const limit = Math.min(Number(searchParams.get("limit") || 80), 200);
+
+  const rows = await sql`
+    select *
+    from patients
+    where (${q || null}::text is null
+      or lower(patient_name) like lower(${"%" + q + "%"})
+      or coalesce(phone, '') like ${"%" + q + "%"}
+      or coalesce(cpf, '') like ${"%" + q + "%"})
+    and (${status || null}::text is null or status = ${status})
+    order by updated_at desc
+    limit ${limit}
+  `;
+
+  const summary = await sql`
+    select status, count(*)::int as total
+    from patients
+    group by status
+  `;
+
+  const totals = Object.fromEntries(STATUSES.map((item) => [item.key, 0]));
+  for (const item of summary) totals[item.status] = item.total;
+
+  return NextResponse.json({ rows, totals });
+}
+
+export async function POST(request) {
+  if (!(await requireAuth())) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+
+  const sql = getSql();
+  const data = normalizePatient(await request.json());
+
+  if (!data.patient_name) {
+    return NextResponse.json({ error: "Nome do paciente é obrigatório." }, { status: 400 });
+  }
+
+  const [row] = await sql`
+    insert into patients (
+      status, patient_name, cpf, sus_card, birth_date, phone, email, city, state,
+      medical_request_date, audiometry_date, hearing_loss, documentation_notes,
+      test_date, audiologist_name, test_result, patient_approved,
+      order_date, factory_order_number, device_side, device_brand, device_model,
+      right_device_code, left_device_code, accessory_codes, factory_value_cents,
+      patient_value_cents, arrival_date, adaptation_date, notes
+    ) values (
+      ${data.status}, ${data.patient_name}, ${data.cpf}, ${data.sus_card}, ${data.birth_date},
+      ${data.phone}, ${data.email}, ${data.city}, ${data.state}, ${data.medical_request_date},
+      ${data.audiometry_date}, ${data.hearing_loss}, ${data.documentation_notes},
+      ${data.test_date}, ${data.audiologist_name}, ${data.test_result}, ${data.patient_approved},
+      ${data.order_date}, ${data.factory_order_number}, ${data.device_side}, ${data.device_brand},
+      ${data.device_model}, ${data.right_device_code}, ${data.left_device_code},
+      ${data.accessory_codes}, ${data.factory_value_cents}, ${data.patient_value_cents},
+      ${data.arrival_date}, ${data.adaptation_date}, ${data.notes}
+    )
+    returning *
+  `;
+
+  return NextResponse.json({ row }, { status: 201 });
+}
