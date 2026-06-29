@@ -29,6 +29,18 @@ sql/schema.sql
 
 no SQL Editor do Neon ou Supabase.
 
+## Planilhas de pedido
+
+Modelos reais de pedido da fábrica não devem ser versionados no GitHub porque podem conter dados de paciente, endereço e condições comerciais.
+
+As regras do modelo SONIC analisado estão em:
+
+```text
+docs/pedido-sonic-template.md
+```
+
+A geração final do Excel deve preencher apenas células variáveis do pedido, preservando códigos, valores, fórmulas e abas auxiliares da planilha original.
+
 ## Deploy na Vercel
 
 Projeto sugerido: `imouvir`.
