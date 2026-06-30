@@ -234,6 +234,28 @@ button:hover {
   gap: 1rem;
 }
 
+.mode-actions,
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.mode-actions {
+  justify-content: flex-end;
+}
+
+.mode-active {
+  border-color: var(--teal-600);
+  background: var(--mint-100);
+}
+
+.row-actions button {
+  min-height: 34px;
+  padding: .45rem .65rem;
+  font-size: .82rem;
+}
+
 .eyebrow {
   margin: 0 0 .4rem;
   color: var(--teal-600);

@@ -79,6 +79,7 @@ export default function DashboardClient({ initialAuthenticated }) {
   const [statusFilter, setStatusFilter] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [catalog, setCatalog] = useState({ products: [], paymentTerms: [] });
+  const [formMode, setFormMode] = useState("schedule");
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [appointments, setAppointments] = useState([]);
   const [appointmentsLoading, setAppointmentsLoading] = useState(false);
@@ -173,7 +174,7 @@ export default function DashboardClient({ initialAuthenticated }) {
     const response = await fetch(`/api/patients/${appointment.id}`);
     if (!response.ok) return;
     const data = await response.json();
-    edit(data.row);
+    edit(data.row, "schedule");
     document.getElementById("novo-pedido")?.scrollIntoView({ behavior: "smooth" });
   }
 
@@ -311,7 +312,8 @@ export default function DashboardClient({ initialAuthenticated }) {
     }));
   }
 
-  function edit(row) {
+  function edit(row, mode = "schedule") {
+    setFormMode(mode);
     setEditingId(row.id);
     setForm({
       ...emptyForm,
@@ -332,10 +334,16 @@ export default function DashboardClient({ initialAuthenticated }) {
 
   function resetForm() {
     setEditingId(null);
+    setFormMode("schedule");
     setForm(emptyForm);
   }
 
-  async function savePatient(event) {
+  function startOrder(row) {
+    edit(row, "order");
+    document.getElementById("novo-pedido")?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  async function savePatient(event, intent = formMode) {
     event.preventDefault();
     setMessage("");
     const payload = {
@@ -347,6 +355,9 @@ export default function DashboardClient({ initialAuthenticated }) {
       factory_value_cents: currencyToCents(form.factory_value_cents_display ?? centsToCurrency(form.factory_value_cents)),
       patient_value_cents: currencyToCents(form.patient_value_cents_display ?? centsToCurrency(form.patient_value_cents))
     };
+    if (intent === "schedule") {
+      payload.status = "teste_agendado";
+    }
     delete payload.factory_value_cents_display;
     delete payload.patient_value_cents_display;
 
@@ -360,7 +371,7 @@ export default function DashboardClient({ initialAuthenticated }) {
       setMessage(data.error || "Não foi possível salvar.");
       return;
     }
-    setMessage(editingId ? "Pedido atualizado." : "Pedido cadastrado.");
+    setMessage(intent === "schedule" ? "Cadastro e agendamento salvos." : editingId ? "Pedido atualizado." : "Pedido cadastrado.");
     resetForm();
     loadPatients();
     loadAppointments();
@@ -531,10 +542,18 @@ export default function DashboardClient({ initialAuthenticated }) {
         <section className="panel" id="novo-pedido">
           <div className="panel-heading">
             <div>
-              <p className="eyebrow">{editingId ? "Editar pedido" : "Cadastro"}</p>
-              <h2>{editingId ? `Pedido #${editingId}` : "Novo pedido de aparelho"}</h2>
+              <p className="eyebrow">{formMode === "schedule" ? "Cadastro e agenda" : "Pedido do aparelho"}</p>
+              <h2>{editingId ? `Paciente #${editingId}` : formMode === "schedule" ? "Novo cadastro e agendamento" : "Novo pedido de aparelho"}</h2>
             </div>
-            {editingId ? <button className="secondary" onClick={resetForm}>Cancelar edição</button> : null}
+            <div className="mode-actions">
+              <button type="button" className={formMode === "schedule" ? "secondary mode-active" : "secondary"} onClick={() => { setFormMode("schedule"); if (!editingId) setForm(emptyForm); }}>
+                Novo cadastro/agendamento
+              </button>
+              <button type="button" className={formMode === "order" ? "secondary mode-active" : "secondary"} onClick={() => setFormMode("order")}>
+                Fazer pedido
+              </button>
+              {editingId ? <button type="button" className="secondary" onClick={resetForm}>Cancelar edição</button> : null}
+            </div>
           </div>
 
           <form className="patient-form" onSubmit={savePatient}>
@@ -670,7 +689,12 @@ export default function DashboardClient({ initialAuthenticated }) {
               <textarea value={form.documentation_notes || ""} onChange={(event) => updateField("documentation_notes", event.target.value)} />
             </label>
             <div className="form-actions">
-              <button type="submit">{editingId ? "Salvar alterações" : "Cadastrar pedido"}</button>
+              <button type="button" onClick={(event) => savePatient(event, "schedule")}>
+                Salvar cadastro/agendamento
+              </button>
+              <button type="button" className="secondary" onClick={(event) => savePatient(event, "order")}>
+                {editingId ? "Salvar pedido do aparelho" : "Cadastrar pedido"}
+              </button>
               {message ? <span>{message}</span> : null}
             </div>
           </form>
@@ -712,7 +736,12 @@ export default function DashboardClient({ initialAuthenticated }) {
                     <td>{row.test_date ? new Date(row.test_date).toLocaleString("pt-BR") : "-"}</td>
                     <td>{row.device_model || "-"}</td>
                     <td>{row.factory_order_number || "-"}</td>
-                    <td><button className="secondary" onClick={() => edit(row)}>Editar</button></td>
+                    <td>
+                      <div className="row-actions">
+                        <button className="secondary" onClick={() => edit(row, "schedule")}>Editar cadastro</button>
+                        <button className="secondary" onClick={() => startOrder(row)}>Fazer pedido</button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
