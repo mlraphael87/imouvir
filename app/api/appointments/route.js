@@ -13,9 +13,11 @@ function monthRange(monthParam) {
     throw new Error("Mês inválido.");
   }
 
-  const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
-  const end = new Date(Date.UTC(year, month, 1, 0, 0, 0));
-  return { start: start.toISOString(), end: end.toISOString() };
+  const start = `${year}-${String(month).padStart(2, "0")}-01T00:00:00-04:00`;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  const end = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01T00:00:00-04:00`;
+  return { start, end };
 }
 
 export async function GET(request) {

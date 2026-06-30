@@ -154,9 +154,9 @@ export default function DashboardClient({ initialAuthenticated }) {
     setLoading(false);
   }
 
-  async function loadAppointments() {
+  async function loadAppointments(monthDate = calendarMonth) {
     setAppointmentsLoading(true);
-    const response = await fetch(`/api/appointments?month=${monthKey(calendarMonth)}`);
+    const response = await fetch(`/api/appointments?month=${monthKey(monthDate)}`);
     if (response.status === 401) {
       setAuthenticated(false);
       return;
@@ -346,6 +346,14 @@ export default function DashboardClient({ initialAuthenticated }) {
   async function savePatient(event, intent = formMode) {
     event.preventDefault();
     setMessage("");
+    if (!form.patient_name?.trim()) {
+      setMessage("Informe o nome do paciente.");
+      return;
+    }
+    if (intent === "schedule" && !form.test_date) {
+      setMessage("Informe a data e horário do teste para aparecer na agenda.");
+      return;
+    }
     const payload = {
       ...form,
       selected_payment_term_id: form.selected_payment_term_id || null,
@@ -372,9 +380,15 @@ export default function DashboardClient({ initialAuthenticated }) {
       return;
     }
     setMessage(intent === "schedule" ? "Cadastro e agendamento salvos." : editingId ? "Pedido atualizado." : "Pedido cadastrado.");
+    const appointmentDate = data.row?.test_date || data.row?.adaptation_date;
+    if (appointmentDate) {
+      const nextMonth = new Date(appointmentDate);
+      setCalendarMonth(new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1));
+      await loadAppointments(nextMonth);
+    }
     resetForm();
     loadPatients();
-    loadAppointments();
+    if (!appointmentDate) loadAppointments();
   }
 
   function exportExcel() {
