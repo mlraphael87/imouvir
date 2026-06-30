@@ -47,6 +47,14 @@ const currencyToCents = (value) => Math.round(Number(String(value).replace(",", 
 const centsToCurrency = (value) => (Number(value || 0) / 100).toFixed(2).replace(".", ",");
 const moneyLabel = (value) => `R$ ${centsToCurrency(value)}`;
 const monthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+const onlyDigits = (value) => String(value || "").replace(/\D/g, "");
+const isValidPhone = (value) => /^\d{11}$/.test(onlyDigits(value));
+const formatPhone = (value) => {
+  const digits = onlyDigits(value).slice(0, 11);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+};
 const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const monthLabel = (date) => date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 const eventTypeLabel = (type) => type === "adaptation_date" ? "Adaptação" : "Teste";
@@ -82,9 +90,9 @@ function appointmentDateLabel(appointment) {
 }
 
 function whatsappHref(appointment) {
-  const digits = String(appointment.phone || "").replace(/\D/g, "");
-  if (!digits) return "";
-  const phone = digits.startsWith("55") ? digits : `55${digits}`;
+  const digits = onlyDigits(appointment.phone);
+  if (!isValidPhone(digits)) return "";
+  const phone = `55${digits}`;
   const message = `Olá, o Instituto Imouvir gostaria de confirmar seu agendamento para o teste de aparelho auditivo que está marcado para ${appointmentDateLabel(appointment)}?`;
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
@@ -349,6 +357,7 @@ export default function DashboardClient({ initialAuthenticated }) {
     setForm({
       ...emptyForm,
       ...row,
+      phone: formatPhone(row.phone),
       birth_date: row.birth_date || "",
       medical_request_date: row.medical_request_date || "",
       audiometry_date: row.audiometry_date || "",
@@ -381,12 +390,17 @@ export default function DashboardClient({ initialAuthenticated }) {
       setMessage("Informe o nome do paciente.");
       return;
     }
+    if (!isValidPhone(form.phone)) {
+      setMessage("Informe um telefone valido com 11 digitos: 2 de DDD + 9 do telefone.");
+      return;
+    }
     if (intent === "schedule" && !form.test_date) {
       setMessage("Informe a data e horário do teste para aparecer na agenda.");
       return;
     }
     const payload = {
       ...form,
+      phone: onlyDigits(form.phone),
       selected_payment_term_id: form.selected_payment_term_id || null,
       selected_device_product_id: form.selected_device_product_id || null,
       selected_accessory_product_ids: form.selected_accessory_product_ids || [],
@@ -566,7 +580,7 @@ export default function DashboardClient({ initialAuthenticated }) {
                           <strong>{appointment.patient_name}</strong>
                           {whatsapp ? (
                             <a className="whatsapp-link" href={whatsapp} target="_blank" rel="noreferrer">
-                              {appointment.phone}
+                              {formatPhone(appointment.phone)}
                             </a>
                           ) : (
                             <small>Sem telefone</small>
@@ -609,7 +623,14 @@ export default function DashboardClient({ initialAuthenticated }) {
             <Field label="Nome do paciente" required value={form.patient_name} onChange={(v) => updateField("patient_name", v)} />
             <Field label="CPF" value={form.cpf || ""} onChange={(v) => updateField("cpf", v)} />
             <Field label="Nascimento" type="date" value={form.birth_date || ""} onChange={(v) => updateField("birth_date", v)} />
-            <Field label="Telefone" value={form.phone || ""} onChange={(v) => updateField("phone", v)} />
+            <Field
+              label="Telefone"
+              value={formatPhone(form.phone)}
+              onChange={(v) => updateField("phone", formatPhone(v))}
+              inputMode="numeric"
+              maxLength={15}
+              placeholder="(65) 99999-9999"
+            />
             <Field label="E-mail" value={form.email || ""} onChange={(v) => updateField("email", v)} />
             <Field label="Cidade" value={form.city || ""} onChange={(v) => updateField("city", v)} />
             <Field label="UF" value={form.state || ""} onChange={(v) => updateField("state", v)} />
@@ -771,7 +792,7 @@ export default function DashboardClient({ initialAuthenticated }) {
                   <tr key={row.id}>
                     <td>
                       <strong>{row.patient_name}</strong>
-                      <small>{row.phone || "Sem telefone"}</small>
+                      <small>{row.phone ? formatPhone(row.phone) : "Sem telefone"}</small>
                     </td>
                     <td><span className="pill">{statusLabel(row.status)}</span></td>
                     <td>{[row.city, row.state].filter(Boolean).join(" / ") || "-"}</td>
@@ -795,7 +816,7 @@ export default function DashboardClient({ initialAuthenticated }) {
   );
 }
 
-function Field({ label, value, onChange, type = "text", required = false, disabled = false }) {
+function Field({ label, value, onChange, type = "text", required = false, disabled = false, inputMode, maxLength, placeholder }) {
   return (
     <label>
       {label}
@@ -804,6 +825,9 @@ function Field({ label, value, onChange, type = "text", required = false, disabl
         value={value || ""}
         required={required}
         disabled={disabled}
+        inputMode={inputMode}
+        maxLength={maxLength}
+        placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
       />
     </label>

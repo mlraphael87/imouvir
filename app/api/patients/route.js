@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSql } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { normalizePatient } from "@/lib/patient-fields";
+import { isValidBrazilMobilePhone, normalizePatient } from "@/lib/patient-fields";
 import { STATUSES } from "@/lib/status";
 
 export async function GET(request) {
@@ -42,6 +42,9 @@ export async function POST(request) {
 
   const sql = getSql();
   const data = normalizePatient(await request.json());
+  if (!isValidBrazilMobilePhone(data.phone)) {
+    return NextResponse.json({ error: "Telefone invalido. Informe 11 digitos: 2 de DDD + 9 do telefone." }, { status: 400 });
+  }
 
   if (!data.patient_name) {
     return NextResponse.json({ error: "Nome do paciente é obrigatório." }, { status: 400 });

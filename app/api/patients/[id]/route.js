@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSql } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { normalizePatient } from "@/lib/patient-fields";
+import { isValidBrazilMobilePhone, normalizePatient } from "@/lib/patient-fields";
 
 export async function GET(_request, context) {
   if (!(await requireAuth())) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
@@ -24,6 +24,9 @@ export async function PATCH(request, context) {
   const { id } = await context.params;
   const sql = getSql();
   const data = normalizePatient(await request.json());
+  if (!isValidBrazilMobilePhone(data.phone)) {
+    return NextResponse.json({ error: "Telefone invalido. Informe 11 digitos: 2 de DDD + 9 do telefone." }, { status: 400 });
+  }
 
   const [row] = await sql`
     update patients set
