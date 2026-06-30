@@ -45,10 +45,13 @@ button {
   color: var(--white);
   font-weight: 700;
   cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease;
 }
 
 button:hover {
+  border-color: var(--teal-800);
   background: var(--teal-800);
+  color: var(--white);
 }
 
 .secondary,
@@ -56,6 +59,13 @@ button:hover {
   background: var(--white);
   color: var(--teal-800);
   box-shadow: none;
+}
+
+.secondary:hover,
+.ghost-button:hover {
+  border-color: var(--teal-800);
+  background: var(--teal-800);
+  color: var(--white);
 }
 
 .ghost-button {
@@ -248,6 +258,13 @@ button:hover {
 .mode-active {
   border-color: var(--teal-600);
   background: var(--mint-100);
+  color: var(--teal-950);
+}
+
+.mode-active:hover {
+  border-color: var(--teal-800);
+  background: var(--teal-800);
+  color: var(--white);
 }
 
 .row-actions button {

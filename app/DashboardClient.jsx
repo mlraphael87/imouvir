@@ -391,7 +391,7 @@ export default function DashboardClient({ initialAuthenticated }) {
       setMessage("Informe um telefone valido com 11 digitos: 2 de DDD + 9 do telefone.");
       return;
     }
-    if (intent === "schedule" && !form.test_date) {
+    if (intent === "schedule" && !editingId && !form.test_date) {
       setMessage("Informe a data e horário do teste para aparecer na agenda.");
       return;
     }
@@ -405,7 +405,7 @@ export default function DashboardClient({ initialAuthenticated }) {
       factory_value_cents: currencyToCents(form.factory_value_cents_display ?? centsToCurrency(form.factory_value_cents)),
       patient_value_cents: currencyToCents(form.patient_value_cents_display ?? centsToCurrency(form.patient_value_cents))
     };
-    if (intent === "schedule") {
+    if (intent === "schedule" && !editingId) {
       payload.status = "teste_agendado";
     }
     delete payload.factory_value_cents_display;
@@ -421,7 +421,7 @@ export default function DashboardClient({ initialAuthenticated }) {
       setMessage(data.error || "Não foi possível salvar.");
       return;
     }
-    setMessage(intent === "schedule" ? "Cadastro e agendamento salvos." : editingId ? "Pedido atualizado." : "Pedido cadastrado.");
+    setMessage(editingId ? "Edição salva." : intent === "schedule" ? "Cadastro e agendamento salvos." : "Pedido cadastrado.");
     const appointmentDate = data.row?.test_date || data.row?.adaptation_date;
     if (appointmentDate) {
       const nextMonth = new Date(appointmentDate);
@@ -623,7 +623,7 @@ export default function DashboardClient({ initialAuthenticated }) {
               <button type="button" className={formMode === "order" ? "secondary mode-active" : "secondary"} onClick={() => setFormMode("order")}>
                 Fazer pedido
               </button>
-              {editingId ? <button type="button" className="secondary" onClick={resetForm}>Cancelar edição</button> : null}
+              {editingId ? <button type="button" className="secondary" onClick={(event) => savePatient(event, "edit")}>Salvar edição</button> : null}
             </div>
           </div>
 

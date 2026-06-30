@@ -4,6 +4,13 @@ import { requireAuth } from "@/lib/auth";
 import { isValidBrazilMobilePhone, normalizePatient } from "@/lib/patient-fields";
 import { STATUSES } from "@/lib/status";
 
+function normalizeAutomaticStatus(data) {
+  if (data.status !== "teste_agendado" || !data.test_date) return data.status;
+  const testDate = new Date(data.test_date);
+  if (Number.isNaN(testDate.getTime())) return data.status;
+  return testDate < new Date() ? "teste_realizado" : data.status;
+}
+
 export async function GET(request) {
   if (!(await requireAuth())) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
 
@@ -12,6 +19,15 @@ export async function GET(request) {
   const q = searchParams.get("q")?.trim();
   const status = searchParams.get("status")?.trim();
   const limit = Math.min(Number(searchParams.get("limit") || 80), 200);
+
+  await sql`
+    update patients
+    set status = 'teste_realizado',
+        updated_at = now()
+    where status = 'teste_agendado'
+      and test_date is not null
+      and test_date < now()
+  `;
 
   const rows = await sql`
     select *
@@ -61,7 +77,7 @@ export async function POST(request) {
       right_device_code, left_device_code, accessory_codes, factory_value_cents,
       patient_value_cents, arrival_date, adaptation_date, notes
     ) values (
-      ${data.status}, ${data.patient_name}, ${data.cpf}, ${data.sus_card}, ${data.birth_date},
+      ${normalizeAutomaticStatus(data)}, ${data.patient_name}, ${data.cpf}, ${data.sus_card}, ${data.birth_date},
       ${data.phone}, ${data.email}, ${data.city}, ${data.state}, ${data.medical_request_date},
       ${data.audiometry_date}, ${data.hearing_loss}, ${data.documentation_notes},
       ${data.test_date}, ${data.audiologist_name}, ${data.test_result}, ${data.patient_approved},

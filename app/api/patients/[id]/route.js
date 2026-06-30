@@ -3,6 +3,13 @@ import { getSql } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { isValidBrazilMobilePhone, normalizePatient } from "@/lib/patient-fields";
 
+function normalizeAutomaticStatus(data) {
+  if (data.status !== "teste_agendado" || !data.test_date) return data.status;
+  const testDate = new Date(data.test_date);
+  if (Number.isNaN(testDate.getTime())) return data.status;
+  return testDate < new Date() ? "teste_realizado" : data.status;
+}
+
 export async function GET(_request, context) {
   if (!(await requireAuth())) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
 
@@ -30,7 +37,7 @@ export async function PATCH(request, context) {
 
   const [row] = await sql`
     update patients set
-      status = ${data.status},
+      status = ${normalizeAutomaticStatus(data)},
       patient_name = ${data.patient_name},
       cpf = ${data.cpf},
       sus_card = ${data.sus_card},
