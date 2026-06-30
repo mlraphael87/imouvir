@@ -3,6 +3,21 @@ import { getSql } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { normalizePatient } from "@/lib/patient-fields";
 
+export async function GET(_request, context) {
+  if (!(await requireAuth())) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+
+  const { id } = await context.params;
+  const sql = getSql();
+  const [row] = await sql`
+    select *
+    from patients
+    where id = ${id}
+  `;
+
+  if (!row) return NextResponse.json({ error: "Registro não encontrado." }, { status: 404 });
+  return NextResponse.json({ row });
+}
+
 export async function PATCH(request, context) {
   if (!(await requireAuth())) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
 

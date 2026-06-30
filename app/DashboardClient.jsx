@@ -46,6 +46,12 @@ const emptyForm = {
 const currencyToCents = (value) => Math.round(Number(String(value).replace(",", ".") || 0) * 100);
 const centsToCurrency = (value) => (Number(value || 0) / 100).toFixed(2).replace(".", ",");
 const moneyLabel = (value) => `R$ ${centsToCurrency(value)}`;
+const monthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const monthLabel = (date) => date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+const timeLabel = (date) => date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+const eventTypeLabel = (type) => type === "adaptation_date" ? "Adaptação" : "Teste";
+const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 export default function DashboardClient({ initialAuthenticated }) {
   const [authenticated, setAuthenticated] = useState(initialAuthenticated);
@@ -56,6 +62,9 @@ export default function DashboardClient({ initialAuthenticated }) {
   const [statusFilter, setStatusFilter] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [catalog, setCatalog] = useState({ products: [], paymentTerms: [] });
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [appointments, setAppointments] = useState([]);
+  const [appointmentsLoading, setAppointmentsLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -64,6 +73,15 @@ export default function DashboardClient({ initialAuthenticated }) {
   const products = catalog.products || [];
   const devices = useMemo(() => products.filter((item) => item.item_kind === "device"), [products]);
   const accessories = useMemo(() => products.filter((item) => item.item_kind !== "device"), [products]);
+  const appointmentsByDay = useMemo(() => {
+    const grouped = {};
+    for (const appointment of appointments) {
+      const key = dateKey(new Date(appointment.starts_at));
+      grouped[key] = [...(grouped[key] || []), appointment];
+    }
+    return grouped;
+  }, [appointments]);
+  const calendarDays = useMemo(() => buildCalendarDays(calendarMonth), [calendarMonth]);
 
   useEffect(() => {
     if (authenticated) {
@@ -71,6 +89,10 @@ export default function DashboardClient({ initialAuthenticated }) {
       loadCatalog();
     }
   }, [authenticated, statusFilter]);
+
+  useEffect(() => {
+    if (authenticated) loadAppointments();
+  }, [authenticated, calendarMonth]);
 
   async function login(event) {
     event.preventDefault();
@@ -106,6 +128,30 @@ export default function DashboardClient({ initialAuthenticated }) {
     setRows(data.rows || []);
     setTotals(data.totals || {});
     setLoading(false);
+  }
+
+  async function loadAppointments() {
+    setAppointmentsLoading(true);
+    const response = await fetch(`/api/appointments?month=${monthKey(calendarMonth)}`);
+    if (response.status === 401) {
+      setAuthenticated(false);
+      return;
+    }
+    const data = await response.json();
+    setAppointments(data.events || []);
+    setAppointmentsLoading(false);
+  }
+
+  function moveCalendarMonth(offset) {
+    setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+  }
+
+  async function editAppointment(appointment) {
+    const response = await fetch(`/api/patients/${appointment.id}`);
+    if (!response.ok) return;
+    const data = await response.json();
+    edit(data.row);
+    document.getElementById("novo-pedido")?.scrollIntoView({ behavior: "smooth" });
   }
 
   async function loadCatalog() {
@@ -282,6 +328,7 @@ export default function DashboardClient({ initialAuthenticated }) {
     setMessage(editingId ? "Pedido atualizado." : "Pedido cadastrado.");
     resetForm();
     loadPatients();
+    loadAppointments();
   }
 
   function exportExcel() {
@@ -317,6 +364,7 @@ export default function DashboardClient({ initialAuthenticated }) {
         <img src="/assets/logo-imouvir-header.png" alt="Instituto IMOUVIR" />
         <nav>
           <a href="#dashboard">Dashboard</a>
+          <a href="#agendamentos">Agendamentos</a>
           <a href="#novo-pedido">Novo pedido</a>
           <a href="#lista">Pedidos</a>
         </nav>
@@ -358,6 +406,67 @@ export default function DashboardClient({ initialAuthenticated }) {
               <strong>{totals[status.key] || 0}</strong>
             </button>
           ))}
+        </section>
+
+        <section className="panel" id="agendamentos">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Agenda</p>
+              <h2>Agendamentos do mês</h2>
+            </div>
+            <div className="calendar-controls">
+              <button type="button" className="secondary" onClick={() => moveCalendarMonth(-1)}>Mês anterior</button>
+              <strong>{monthLabel(calendarMonth)}</strong>
+              <button type="button" className="secondary" onClick={() => moveCalendarMonth(1)}>Próximo mês</button>
+            </div>
+          </div>
+
+          <div className="calendar-summary">
+            <article>
+              <span>Total no mês</span>
+              <strong>{appointments.length}</strong>
+            </article>
+            <article>
+              <span>Testes</span>
+              <strong>{appointments.filter((item) => item.event_type === "test_date").length}</strong>
+            </article>
+            <article>
+              <span>Adaptações</span>
+              <strong>{appointments.filter((item) => item.event_type === "adaptation_date").length}</strong>
+            </article>
+          </div>
+
+          <div className="calendar-grid">
+            {weekDays.map((day) => <div className="calendar-weekday" key={day}>{day}</div>)}
+            {calendarDays.map((day) => {
+              const key = dateKey(day.date);
+              const dayAppointments = appointmentsByDay[key] || [];
+              return (
+                <div className={day.inMonth ? "calendar-day" : "calendar-day muted-day"} key={key}>
+                  <span className="calendar-date">{day.date.getDate()}</span>
+                  <div className="calendar-events">
+                    {dayAppointments.map((appointment) => {
+                      const startsAt = new Date(appointment.starts_at);
+                      return (
+                        <button
+                          type="button"
+                          className={`calendar-event ${appointment.event_type === "adaptation_date" ? "adaptation-event" : "test-event"}`}
+                          key={`${appointment.event_type}-${appointment.id}-${appointment.starts_at}`}
+                          onClick={() => editAppointment(appointment)}
+                        >
+                          <span>{timeLabel(startsAt)} · {eventTypeLabel(appointment.event_type)}</span>
+                          <strong>{appointment.patient_name}</strong>
+                          <small>{[appointment.city, appointment.state].filter(Boolean).join(" / ") || appointment.phone || "Sem local"}</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {appointmentsLoading ? <p className="calendar-loading">Carregando agenda...</p> : null}
         </section>
 
         <section className="panel" id="novo-pedido">
@@ -553,4 +662,19 @@ function Field({ label, value, onChange, type = "text", required = false, disabl
       />
     </label>
   );
+}
+
+function buildCalendarDays(monthDate) {
+  const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const start = new Date(firstDay);
+  start.setDate(firstDay.getDate() - firstDay.getDay());
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return {
+      date,
+      inMonth: date.getMonth() === monthDate.getMonth()
+    };
+  });
 }
