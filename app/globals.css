@@ -123,6 +123,15 @@ button:hover {
   resize: vertical;
 }
 
+.patient-form select[multiple] {
+  min-height: 180px;
+}
+
+.patient-form input:disabled {
+  color: var(--muted);
+  background: var(--paper);
+}
+
 .app-shell {
   min-height: 100vh;
   display: grid;

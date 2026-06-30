@@ -52,7 +52,9 @@ export async function POST(request) {
       status, patient_name, cpf, sus_card, birth_date, phone, email, city, state,
       medical_request_date, audiometry_date, hearing_loss, documentation_notes,
       test_date, audiologist_name, test_result, patient_approved,
-      order_date, factory_order_number, device_side, device_brand, device_model,
+      order_date, factory_order_number, selected_payment_term_id, payment_terms,
+      payment_description, payment_code, selected_device_product_id,
+      selected_accessory_product_ids, device_side, device_brand, device_model,
       right_device_code, left_device_code, accessory_codes, factory_value_cents,
       patient_value_cents, arrival_date, adaptation_date, notes
     ) values (
@@ -60,8 +62,10 @@ export async function POST(request) {
       ${data.phone}, ${data.email}, ${data.city}, ${data.state}, ${data.medical_request_date},
       ${data.audiometry_date}, ${data.hearing_loss}, ${data.documentation_notes},
       ${data.test_date}, ${data.audiologist_name}, ${data.test_result}, ${data.patient_approved},
-      ${data.order_date}, ${data.factory_order_number}, ${data.device_side}, ${data.device_brand},
-      ${data.device_model}, ${data.right_device_code}, ${data.left_device_code},
+      ${data.order_date}, ${data.factory_order_number}, ${data.selected_payment_term_id},
+      ${data.payment_terms}, ${data.payment_description}, ${data.payment_code},
+      ${data.selected_device_product_id}, ${data.selected_accessory_product_ids}::bigint[],
+      ${data.device_side}, ${data.device_brand}, ${data.device_model}, ${data.right_device_code}, ${data.left_device_code},
       ${data.accessory_codes}, ${data.factory_value_cents}, ${data.patient_value_cents},
       ${data.arrival_date}, ${data.adaptation_date}, ${data.notes}
     )

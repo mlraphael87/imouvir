@@ -19,3 +19,6 @@ yarn-error.log*
 *.xls
 
 private/
+
+.vercel
+.env*

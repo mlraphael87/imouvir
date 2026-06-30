@@ -47,6 +47,33 @@ Projeto sugerido: `imouvir`.
 
 Se o nome nao estiver disponivel, use `imouvir-crm`.
 
+### Banco gratuito Neon pela Vercel
+
+Quando a organização Neon é gerenciada pela Vercel, a criação direta por `neonctl projects create` pode ser bloqueada com:
+
+```text
+action restricted; organization is managed by Vercel
+```
+
+Nesse caso, crie o banco pelo painel da Vercel:
+
+1. Acesse o projeto `imouvir` na Vercel.
+2. Abra `Storage` ou `Marketplace`.
+3. Escolha `Neon`.
+4. Crie um banco Postgres gratuito para o projeto.
+5. Conecte o banco ao ambiente `Production`.
+6. Confirme se a Vercel criou `DATABASE_URL` ou `POSTGRES_URL`.
+7. Adicione também:
+
+```env
+CRM_PASSWORD="uma-senha-forte"
+SESSION_SECRET="uma-chave-grande-aleatoria"
+```
+
+O código aceita `DATABASE_URL` e `POSTGRES_URL`.
+
+Depois, execute `sql/schema.sql` no SQL Editor do Neon.
+
 ## Fluxo do pedido
 
 1. Documentacao recebida

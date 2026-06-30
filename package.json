@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "db:schema": "node scripts/apply-schema.js",
+    "db:catalog": "node scripts/import-catalog.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",

@@ -23,6 +23,12 @@ const emptyForm = {
   patient_approved: false,
   order_date: "",
   factory_order_number: "",
+  selected_payment_term_id: "",
+  payment_terms: "",
+  payment_description: "",
+  payment_code: "",
+  selected_device_product_id: "",
+  selected_accessory_product_ids: [],
   device_side: "bilateral",
   device_brand: "",
   device_model: "",
@@ -38,6 +44,7 @@ const emptyForm = {
 
 const currencyToCents = (value) => Math.round(Number(String(value).replace(",", ".") || 0) * 100);
 const centsToCurrency = (value) => (Number(value || 0) / 100).toFixed(2).replace(".", ",");
+const moneyLabel = (value) => `R$ ${centsToCurrency(value)}`;
 
 export default function DashboardClient({ initialAuthenticated }) {
   const [authenticated, setAuthenticated] = useState(initialAuthenticated);
@@ -47,14 +54,21 @@ export default function DashboardClient({ initialAuthenticated }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [form, setForm] = useState(emptyForm);
+  const [catalog, setCatalog] = useState({ products: [], paymentTerms: [] });
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const totalOpen = useMemo(() => rows.filter((row) => row.status !== "concluido").length, [rows]);
+  const products = catalog.products || [];
+  const devices = useMemo(() => products.filter((item) => item.item_kind === "device"), [products]);
+  const accessories = useMemo(() => products.filter((item) => item.item_kind !== "device"), [products]);
 
   useEffect(() => {
-    if (authenticated) loadPatients();
+    if (authenticated) {
+      loadPatients();
+      loadCatalog();
+    }
   }, [authenticated, statusFilter]);
 
   async function login(event) {
@@ -93,8 +107,79 @@ export default function DashboardClient({ initialAuthenticated }) {
     setLoading(false);
   }
 
+  async function loadCatalog() {
+    const response = await fetch("/api/catalog");
+    if (!response.ok) return;
+    const data = await response.json();
+    setCatalog({
+      products: data.products || [],
+      paymentTerms: data.paymentTerms || []
+    });
+  }
+
+  function findProduct(id) {
+    return products.find((item) => String(item.id) === String(id));
+  }
+
+  function findPaymentTerm(id) {
+    return catalog.paymentTerms.find((item) => String(item.id) === String(id));
+  }
+
+  function productLabel(product) {
+    const code = product.code ? `${product.code} - ` : "";
+    return `${code}${product.description} (${moneyLabel(product.unit_value_cents)})`;
+  }
+
+  function calculateFactoryValueCents(nextForm) {
+    const selectedDevice = findProduct(nextForm.selected_device_product_id);
+    const selectedAccessories = (nextForm.selected_accessory_product_ids || [])
+      .map(findProduct)
+      .filter(Boolean);
+    const deviceQuantity = selectedDevice ? (nextForm.device_side === "bilateral" ? 2 : 1) : 0;
+    const deviceTotal = selectedDevice ? Number(selectedDevice.unit_value_cents || 0) * deviceQuantity : 0;
+    const accessoriesTotal = selectedAccessories.reduce((sum, item) => sum + Number(item.unit_value_cents || 0), 0);
+    return deviceTotal + accessoriesTotal;
+  }
+
+  function hydrateCatalogFields(nextForm) {
+    const selectedDevice = findProduct(nextForm.selected_device_product_id);
+    const selectedAccessories = (nextForm.selected_accessory_product_ids || [])
+      .map(findProduct)
+      .filter(Boolean);
+    const side = nextForm.device_side || "bilateral";
+    const deviceCode = selectedDevice?.code || "";
+
+    return {
+      ...nextForm,
+      device_brand: selectedDevice ? "Sonic" : nextForm.device_brand,
+      device_model: selectedDevice?.description || nextForm.device_model,
+      right_device_code: side === "esquerdo" ? "" : deviceCode,
+      left_device_code: side === "direito" ? "" : deviceCode,
+      accessory_codes: selectedAccessories.map((item) => `${item.code || "sem código"} - ${item.description}`).join("; "),
+      factory_value_cents: calculateFactoryValueCents(nextForm),
+      factory_value_cents_display: undefined
+    };
+  }
+
   function updateField(key, value) {
-    setForm((current) => ({ ...current, [key]: value }));
+    setForm((current) => {
+      const next = { ...current, [key]: value };
+      if (["selected_device_product_id", "selected_accessory_product_ids", "device_side"].includes(key)) {
+        return hydrateCatalogFields(next);
+      }
+      return next;
+    });
+  }
+
+  function updatePaymentTerm(id) {
+    const term = findPaymentTerm(id);
+    setForm((current) => ({
+      ...current,
+      selected_payment_term_id: id,
+      payment_terms: term?.terms || "",
+      payment_description: term?.description || "",
+      payment_code: term?.code || ""
+    }));
   }
 
   function edit(row) {
@@ -107,6 +192,9 @@ export default function DashboardClient({ initialAuthenticated }) {
       audiometry_date: row.audiometry_date || "",
       test_date: row.test_date ? row.test_date.slice(0, 16) : "",
       order_date: row.order_date || "",
+      selected_payment_term_id: row.selected_payment_term_id || "",
+      selected_device_product_id: row.selected_device_product_id || "",
+      selected_accessory_product_ids: row.selected_accessory_product_ids || [],
       arrival_date: row.arrival_date || "",
       adaptation_date: row.adaptation_date ? row.adaptation_date.slice(0, 16) : ""
     });
@@ -122,6 +210,9 @@ export default function DashboardClient({ initialAuthenticated }) {
     setMessage("");
     const payload = {
       ...form,
+      selected_payment_term_id: form.selected_payment_term_id || null,
+      selected_device_product_id: form.selected_device_product_id || null,
+      selected_accessory_product_ids: form.selected_accessory_product_ids || [],
       factory_value_cents: currencyToCents(form.factory_value_cents_display ?? centsToCurrency(form.factory_value_cents)),
       patient_value_cents: currencyToCents(form.patient_value_cents_display ?? centsToCurrency(form.patient_value_cents))
     };
@@ -257,11 +348,25 @@ export default function DashboardClient({ initialAuthenticated }) {
 
             <Field label="Data do pedido à fábrica" type="date" value={form.order_date || ""} onChange={(v) => updateField("order_date", v)} />
             <Field label="Nº pedido fábrica" value={form.factory_order_number || ""} onChange={(v) => updateField("factory_order_number", v)} />
-            <Field label="Marca" value={form.device_brand || ""} onChange={(v) => updateField("device_brand", v)} />
-            <Field label="Modelo" value={form.device_model || ""} onChange={(v) => updateField("device_model", v)} />
-            <Field label="Código direito" value={form.right_device_code || ""} onChange={(v) => updateField("right_device_code", v)} />
-            <Field label="Código esquerdo" value={form.left_device_code || ""} onChange={(v) => updateField("left_device_code", v)} />
-            <Field label="Acessórios / códigos" value={form.accessory_codes || ""} onChange={(v) => updateField("accessory_codes", v)} />
+            <label>
+              Condição de pagamento
+              <select value={form.selected_payment_term_id || ""} onChange={(event) => updatePaymentTerm(event.target.value)}>
+                <option value="">Selecione</option>
+                {catalog.paymentTerms.map((term) => (
+                  <option key={term.id} value={term.id}>
+                    {[term.terms, term.description, term.code].filter(Boolean).join(" - ")}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Field label="Código pagamento" value={form.payment_code || ""} onChange={(v) => updateField("payment_code", v)} disabled />
+            <label>
+              Aparelho auditivo
+              <select value={form.selected_device_product_id || ""} onChange={(event) => updateField("selected_device_product_id", event.target.value)}>
+                <option value="">Selecione</option>
+                {devices.map((product) => <option key={product.id} value={product.id}>{productLabel(product)}</option>)}
+              </select>
+            </label>
             <label>
               Lado
               <select value={form.device_side || "bilateral"} onChange={(event) => updateField("device_side", event.target.value)}>
@@ -270,7 +375,25 @@ export default function DashboardClient({ initialAuthenticated }) {
                 <option value="esquerdo">Esquerdo</option>
               </select>
             </label>
-            <Field label="Valor fábrica" value={form.factory_value_cents_display ?? centsToCurrency(form.factory_value_cents)} onChange={(v) => updateField("factory_value_cents_display", v)} />
+            <label className="wide">
+              Acessórios e itens adicionais
+              <select
+                multiple
+                value={(form.selected_accessory_product_ids || []).map(String)}
+                onChange={(event) => updateField(
+                  "selected_accessory_product_ids",
+                  Array.from(event.target.selectedOptions).map((option) => option.value)
+                )}
+              >
+                {accessories.map((product) => <option key={product.id} value={product.id}>{product.category} | {productLabel(product)}</option>)}
+              </select>
+            </label>
+            <Field label="Marca" value={form.device_brand || ""} onChange={(v) => updateField("device_brand", v)} disabled />
+            <Field label="Modelo" value={form.device_model || ""} onChange={(v) => updateField("device_model", v)} disabled />
+            <Field label="Código direito" value={form.right_device_code || ""} onChange={(v) => updateField("right_device_code", v)} disabled />
+            <Field label="Código esquerdo" value={form.left_device_code || ""} onChange={(v) => updateField("left_device_code", v)} disabled />
+            <Field label="Acessórios / códigos" value={form.accessory_codes || ""} onChange={(v) => updateField("accessory_codes", v)} disabled />
+            <Field label="Valor fábrica" value={form.factory_value_cents_display ?? centsToCurrency(form.factory_value_cents)} onChange={(v) => updateField("factory_value_cents_display", v)} disabled />
             <Field label="Valor paciente" value={form.patient_value_cents_display ?? centsToCurrency(form.patient_value_cents)} onChange={(v) => updateField("patient_value_cents_display", v)} />
             <Field label="Chegada do aparelho" type="date" value={form.arrival_date || ""} onChange={(v) => updateField("arrival_date", v)} />
             <Field label="Retorno/adaptação" type="datetime-local" value={form.adaptation_date || ""} onChange={(v) => updateField("adaptation_date", v)} />
@@ -337,11 +460,17 @@ export default function DashboardClient({ initialAuthenticated }) {
   );
 }
 
-function Field({ label, value, onChange, type = "text", required = false }) {
+function Field({ label, value, onChange, type = "text", required = false, disabled = false }) {
   return (
     <label>
       {label}
-      <input type={type} value={value || ""} required={required} onChange={(event) => onChange(event.target.value)} />
+      <input
+        type={type}
+        value={value || ""}
+        required={required}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+      />
     </label>
   );
 }
