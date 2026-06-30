@@ -61,16 +61,19 @@ const eventTypeLabel = (type) => type === "adaptation_date" ? "Adaptação" : "T
 const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const workflowStages = [
   {
-    title: "1. Agendamento do teste",
-    description: "Primeiro contato, cadastro pessoal e horário com o fonoaudiólogo.",
-    statuses: ["documentacao_recebida", "teste_agendado", "teste_realizado"]
+    key: "agendamento_teste",
+    title: "1. Agendamento teste",
+    description: "Horários agendados e testes já realizados com o fonoaudiólogo.",
+    statuses: ["teste_agendado", "teste_realizado"]
   },
   {
+    key: "pedido_aparelho",
     title: "2. Pedido do aparelho",
     description: "Paciente aprovou, escolha de aparelho, acessórios e envio à fábrica.",
     statuses: ["paciente_aprovou", "pedido_enviado", "aguardando_chegada"]
   },
   {
+    key: "entrega_adaptacao",
     title: "3. Entrega e adaptação",
     description: "Aparelho chegou, retorno agendado e processo concluído.",
     statuses: ["adaptacao_agendada", "concluido"]
@@ -104,6 +107,8 @@ export default function DashboardClient({ initialAuthenticated }) {
   const [totals, setTotals] = useState({});
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [stageFilter, setStageFilter] = useState("");
+  const [activeWorkflowMetric, setActiveWorkflowMetric] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [catalog, setCatalog] = useState({ products: [], paymentTerms: [] });
   const [formMode, setFormMode] = useState("schedule");
@@ -132,19 +137,11 @@ export default function DashboardClient({ initialAuthenticated }) {
       total: stage.statuses.reduce((sum, status) => sum + Number(totals[status] || 0), 0)
     }));
   }, [totals]);
-  const processMetrics = useMemo(() => {
-    const totalProcesses = STATUSES.reduce((sum, status) => sum + Number(totals[status.key] || 0), 0);
-    return [
-      { label: "Total de processos", value: totalProcesses },
-      { label: "Agendamentos", value: Number(totals.documentacao_recebida || 0) + Number(totals.teste_agendado || 0) },
-      { label: "Testes realizados", value: Number(totals.teste_realizado || 0) },
-      { label: "Aprovados para pedido", value: Number(totals.paciente_aprovou || 0) },
-      { label: "Pedidos enviados", value: Number(totals.pedido_enviado || 0) },
-      { label: "Aguardando chegada", value: Number(totals.aguardando_chegada || 0) },
-      { label: "Adaptações agendadas", value: Number(totals.adaptacao_agendada || 0) },
-      { label: "Concluídos", value: Number(totals.concluido || 0) }
-    ];
-  }, [totals]);
+  const selectedStage = useMemo(() => workflowTotals.find((stage) => stage.key === stageFilter), [stageFilter, workflowTotals]);
+  const displayedRows = useMemo(() => {
+    if (!selectedStage) return rows;
+    return rows.filter((row) => selectedStage.statuses.includes(row.status));
+  }, [rows, selectedStage]);
 
   useEffect(() => {
     if (authenticated) {
@@ -442,6 +439,30 @@ export default function DashboardClient({ initialAuthenticated }) {
     window.location.href = `/api/export?${params.toString()}`;
   }
 
+  function countStatus(status) {
+    return Number(totals[status] || 0);
+  }
+
+  function metricButtonClass(isActive, key) {
+    return ["mini-filter", isActive ? "active" : "", activeWorkflowMetric === key ? "show-count" : ""].filter(Boolean).join(" ");
+  }
+
+  function showWorkflowMetric(key) {
+    setActiveWorkflowMetric(key);
+  }
+
+  function toggleStageFilter(stage) {
+    setStageFilter(stageFilter === stage.key ? "" : stage.key);
+    setStatusFilter("");
+    showWorkflowMetric(`${stage.key}:all`);
+  }
+
+  function toggleStatusFilter(stage, status) {
+    setStageFilter("");
+    setStatusFilter(statusFilter === status ? "" : status);
+    showWorkflowMetric(`${stage.key}:${status}`);
+  }
+
   if (!authenticated) {
     return (
       <main className="login-page">
@@ -485,15 +506,6 @@ export default function DashboardClient({ initialAuthenticated }) {
           <button onClick={exportExcel}>Gerar Excel</button>
         </header>
 
-        <section className="metrics">
-          {processMetrics.map((metric) => (
-            <article key={metric.label}>
-              <span>{metric.label}</span>
-              <strong>{metric.value}</strong>
-            </article>
-          ))}
-        </section>
-
         <section className="workflow-board">
           {workflowTotals.map((stage) => (
             <article key={stage.title} className="workflow-card">
@@ -503,31 +515,31 @@ export default function DashboardClient({ initialAuthenticated }) {
               </div>
               <p>{stage.description}</p>
               <div className="workflow-actions">
+                <button
+                  type="button"
+                  className={metricButtonClass(stageFilter === stage.key, `${stage.key}:all`)}
+                  onMouseEnter={() => showWorkflowMetric(`${stage.key}:all`)}
+                  onFocus={() => showWorkflowMetric(`${stage.key}:all`)}
+                  onClick={() => toggleStageFilter(stage)}
+                >
+                  <span>Todos</span>
+                  <strong className="mini-filter-count">{stage.total}</strong>
+                </button>
                 {stage.statuses.map((status) => (
                   <button
                     type="button"
-                    className={statusFilter === status ? "mini-filter active" : "mini-filter"}
+                    className={metricButtonClass(statusFilter === status, `${stage.key}:${status}`)}
                     key={status}
-                    onClick={() => setStatusFilter(statusFilter === status ? "" : status)}
+                    onMouseEnter={() => showWorkflowMetric(`${stage.key}:${status}`)}
+                    onFocus={() => showWorkflowMetric(`${stage.key}:${status}`)}
+                    onClick={() => toggleStatusFilter(stage, status)}
                   >
-                    {statusLabel(status)}
+                    <span>{statusLabel(status)}</span>
+                    <strong className="mini-filter-count">{countStatus(status)}</strong>
                   </button>
                 ))}
               </div>
             </article>
-          ))}
-        </section>
-
-        <section className="pipeline">
-          {STATUSES.map((status) => (
-            <button
-              key={status.key}
-              className={statusFilter === status.key ? "status-card active" : "status-card"}
-              onClick={() => setStatusFilter(statusFilter === status.key ? "" : status.key)}
-            >
-              <span>{status.label}</span>
-              <strong>{totals[status.key] || 0}</strong>
-            </button>
           ))}
         </section>
 
@@ -788,7 +800,7 @@ export default function DashboardClient({ initialAuthenticated }) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
+                {displayedRows.map((row) => (
                   <tr key={row.id}>
                     <td>
                       <strong>{row.patient_name}</strong>

@@ -317,17 +317,49 @@ button:hover {
 }
 
 .mini-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
   min-height: 32px;
   padding: .35rem .55rem;
   border-color: var(--line);
   background: var(--paper);
   color: var(--teal-800);
   font-size: .78rem;
+  white-space: nowrap;
 }
 
 .mini-filter.active {
   border-color: var(--teal-600);
   background: var(--mint-100);
+}
+
+.mini-filter .mini-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  max-width: 0;
+  height: 1.35rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--teal-800);
+  color: var(--white);
+  font-size: .72rem;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(.92);
+  transition: opacity .16s ease, max-width .16s ease, transform .16s ease;
+}
+
+.mini-filter:hover .mini-filter-count,
+.mini-filter:focus-visible .mini-filter-count,
+.mini-filter.active .mini-filter-count,
+.mini-filter.show-count .mini-filter-count {
+  max-width: 3rem;
+  opacity: 1;
+  transform: scale(1);
 }
 
 .metrics article,
