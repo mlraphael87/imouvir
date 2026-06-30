@@ -566,8 +566,8 @@ export default function DashboardClient({ initialAuthenticated }) {
               <h2>{editingId ? `Paciente #${editingId}` : formMode === "schedule" ? "Novo cadastro e agendamento" : "Novo pedido de aparelho"}</h2>
             </div>
             <div className="mode-actions">
-              <button type="button" className={formMode === "schedule" ? "secondary mode-active" : "secondary"} onClick={() => { setFormMode("schedule"); if (!editingId) setForm(emptyForm); }}>
-                Novo cadastro/agendamento
+              <button type="button" className={formMode === "schedule" ? "mode-active" : ""} onClick={(event) => savePatient(event, "schedule")}>
+                Salvar agendamento
               </button>
               <button type="button" className={formMode === "order" ? "secondary mode-active" : "secondary"} onClick={() => setFormMode("order")}>
                 Fazer pedido
@@ -709,9 +709,6 @@ export default function DashboardClient({ initialAuthenticated }) {
               <textarea value={form.documentation_notes || ""} onChange={(event) => updateField("documentation_notes", event.target.value)} />
             </label>
             <div className="form-actions">
-              <button type="button" onClick={(event) => savePatient(event, "schedule")}>
-                Salvar cadastro/agendamento
-              </button>
               <button type="button" className="secondary" onClick={(event) => savePatient(event, "order")}>
                 {editingId ? "Salvar pedido do aparelho" : "Cadastrar pedido"}
               </button>
