@@ -87,7 +87,6 @@ export default function DashboardClient({ initialAuthenticated }) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const totalOpen = useMemo(() => rows.filter((row) => row.status !== "concluido").length, [rows]);
   const products = catalog.products || [];
   const devices = useMemo(() => products.filter((item) => item.item_kind === "device"), [products]);
   const accessories = useMemo(() => products.filter((item) => item.item_kind !== "device"), [products]);
@@ -105,6 +104,19 @@ export default function DashboardClient({ initialAuthenticated }) {
       ...stage,
       total: stage.statuses.reduce((sum, status) => sum + Number(totals[status] || 0), 0)
     }));
+  }, [totals]);
+  const processMetrics = useMemo(() => {
+    const totalProcesses = STATUSES.reduce((sum, status) => sum + Number(totals[status.key] || 0), 0);
+    return [
+      { label: "Total de processos", value: totalProcesses },
+      { label: "Agendamentos", value: Number(totals.documentacao_recebida || 0) + Number(totals.teste_agendado || 0) },
+      { label: "Testes realizados", value: Number(totals.teste_realizado || 0) },
+      { label: "Aprovados para pedido", value: Number(totals.paciente_aprovou || 0) },
+      { label: "Pedidos enviados", value: Number(totals.pedido_enviado || 0) },
+      { label: "Aguardando chegada", value: Number(totals.aguardando_chegada || 0) },
+      { label: "Adaptações agendadas", value: Number(totals.adaptacao_agendada || 0) },
+      { label: "Concluídos", value: Number(totals.concluido || 0) }
+    ];
   }, [totals]);
 
   useEffect(() => {
@@ -441,18 +453,12 @@ export default function DashboardClient({ initialAuthenticated }) {
         </header>
 
         <section className="metrics">
-          <article>
-            <span>Total filtrado</span>
-            <strong>{rows.length}</strong>
-          </article>
-          <article>
-            <span>Em andamento</span>
-            <strong>{totalOpen}</strong>
-          </article>
-          <article>
-            <span>Concluídos</span>
-            <strong>{totals.concluido || 0}</strong>
-          </article>
+          {processMetrics.map((metric) => (
+            <article key={metric.label}>
+              <span>{metric.label}</span>
+              <strong>{metric.value}</strong>
+            </article>
+          ))}
         </section>
 
         <section className="workflow-board">
