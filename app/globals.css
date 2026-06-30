@@ -250,6 +250,64 @@ button:hover {
   gap: 1rem;
 }
 
+.workflow-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.workflow-card {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: 0 8px 20px rgba(7, 59, 62, .06);
+}
+
+.workflow-card > div:first-child {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.workflow-card span {
+  color: var(--teal-950);
+  font-weight: 800;
+}
+
+.workflow-card strong {
+  color: var(--teal-800);
+  font-size: 1.8rem;
+}
+
+.workflow-card p {
+  min-height: 42px;
+  margin: .55rem 0 .85rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.workflow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+}
+
+.mini-filter {
+  min-height: 32px;
+  padding: .35rem .55rem;
+  border-color: var(--line);
+  background: var(--paper);
+  color: var(--teal-800);
+  font-size: .78rem;
+}
+
+.mini-filter.active {
+  border-color: var(--teal-600);
+  background: var(--mint-100);
+}
+
 .metrics article,
 .status-card,
 .panel {
@@ -313,6 +371,26 @@ td small {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
+}
+
+.form-section-title {
+  grid-column: 1 / -1;
+  padding: .9rem 1rem;
+  border-left: 4px solid var(--teal-600);
+  border-radius: 8px;
+  background: var(--mint-100);
+}
+
+.form-section-title span {
+  display: block;
+  color: var(--teal-950);
+  font-weight: 800;
+}
+
+.form-section-title p {
+  margin: .25rem 0 0;
+  color: var(--muted);
+  line-height: 1.4;
 }
 
 .patient-form label {
@@ -560,6 +638,7 @@ td strong {
   }
 
   .pipeline,
+  .workflow-board,
   .patient-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -580,6 +659,7 @@ td strong {
 
   .metrics,
   .pipeline,
+  .workflow-board,
   .patient-form,
   .calendar-summary {
     grid-template-columns: 1fr;

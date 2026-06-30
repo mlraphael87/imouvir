@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { STATUSES, statusLabel } from "@/lib/status";
 
 const emptyForm = {
-  status: "documentacao_recebida",
+  status: "teste_agendado",
   patient_name: "",
   cpf: "",
   sus_card: "",
@@ -52,6 +52,23 @@ const monthLabel = (date) => date.toLocaleDateString("pt-BR", { month: "long", y
 const timeLabel = (date) => date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 const eventTypeLabel = (type) => type === "adaptation_date" ? "Adaptação" : "Teste";
 const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const workflowStages = [
+  {
+    title: "1. Agendamento do teste",
+    description: "Primeiro contato, cadastro pessoal e horário com o fonoaudiólogo.",
+    statuses: ["documentacao_recebida", "teste_agendado", "teste_realizado"]
+  },
+  {
+    title: "2. Pedido do aparelho",
+    description: "Paciente aprovou, escolha de aparelho, acessórios e envio à fábrica.",
+    statuses: ["paciente_aprovou", "pedido_enviado", "aguardando_chegada"]
+  },
+  {
+    title: "3. Entrega e adaptação",
+    description: "Aparelho chegou, retorno agendado e processo concluído.",
+    statuses: ["adaptacao_agendada", "concluido"]
+  }
+];
 
 export default function DashboardClient({ initialAuthenticated }) {
   const [authenticated, setAuthenticated] = useState(initialAuthenticated);
@@ -82,6 +99,12 @@ export default function DashboardClient({ initialAuthenticated }) {
     return grouped;
   }, [appointments]);
   const calendarDays = useMemo(() => buildCalendarDays(calendarMonth), [calendarMonth]);
+  const workflowTotals = useMemo(() => {
+    return workflowStages.map((stage) => ({
+      ...stage,
+      total: stage.statuses.reduce((sum, status) => sum + Number(totals[status] || 0), 0)
+    }));
+  }, [totals]);
 
   useEffect(() => {
     if (authenticated) {
@@ -233,6 +256,18 @@ export default function DashboardClient({ initialAuthenticated }) {
   function updateField(key, value) {
     setForm((current) => {
       const next = { ...current, [key]: value };
+      if (key === "patient_approved" && value && ["documentacao_recebida", "teste_agendado", "teste_realizado"].includes(current.status)) {
+        next.status = "paciente_aprovou";
+      }
+      if ((key === "order_date" || key === "factory_order_number") && value && ["paciente_aprovou", "teste_realizado"].includes(current.status)) {
+        next.status = "pedido_enviado";
+      }
+      if (key === "arrival_date" && value && ["pedido_enviado", "aguardando_chegada"].includes(current.status)) {
+        next.status = "aguardando_chegada";
+      }
+      if (key === "adaptation_date" && value && ["aguardando_chegada", "pedido_enviado"].includes(current.status)) {
+        next.status = "adaptacao_agendada";
+      }
       if (["selected_device_product_id", "selected_accessory_product_ids", "accessory_items", "device_side"].includes(key)) {
         return hydrateCatalogFields(next);
       }
@@ -395,6 +430,30 @@ export default function DashboardClient({ initialAuthenticated }) {
           </article>
         </section>
 
+        <section className="workflow-board">
+          {workflowTotals.map((stage) => (
+            <article key={stage.title} className="workflow-card">
+              <div>
+                <span>{stage.title}</span>
+                <strong>{stage.total}</strong>
+              </div>
+              <p>{stage.description}</p>
+              <div className="workflow-actions">
+                {stage.statuses.map((status) => (
+                  <button
+                    type="button"
+                    className={statusFilter === status ? "mini-filter active" : "mini-filter"}
+                    key={status}
+                    onClick={() => setStatusFilter(statusFilter === status ? "" : status)}
+                  >
+                    {statusLabel(status)}
+                  </button>
+                ))}
+              </div>
+            </article>
+          ))}
+        </section>
+
         <section className="pipeline">
           {STATUSES.map((status) => (
             <button
@@ -479,9 +538,12 @@ export default function DashboardClient({ initialAuthenticated }) {
           </div>
 
           <form className="patient-form" onSubmit={savePatient}>
+            <div className="form-section-title">
+              <span>1. Cadastro e agendamento do teste</span>
+              <p>Primeiro contato: dados pessoais e horário com o fonoaudiólogo.</p>
+            </div>
             <Field label="Nome do paciente" required value={form.patient_name} onChange={(v) => updateField("patient_name", v)} />
             <Field label="CPF" value={form.cpf || ""} onChange={(v) => updateField("cpf", v)} />
-            <Field label="Cartão SUS" value={form.sus_card || ""} onChange={(v) => updateField("sus_card", v)} />
             <Field label="Nascimento" type="date" value={form.birth_date || ""} onChange={(v) => updateField("birth_date", v)} />
             <Field label="Telefone" value={form.phone || ""} onChange={(v) => updateField("phone", v)} />
             <Field label="E-mail" value={form.email || ""} onChange={(v) => updateField("email", v)} />
@@ -489,22 +551,31 @@ export default function DashboardClient({ initialAuthenticated }) {
             <Field label="UF" value={form.state || ""} onChange={(v) => updateField("state", v)} />
 
             <label>
-              Status
+              Etapa atual
               <select value={form.status} onChange={(event) => updateField("status", event.target.value)}>
                 {STATUSES.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}
               </select>
             </label>
+            <Field label="Teste com aparelho" type="datetime-local" value={form.test_date || ""} onChange={(v) => updateField("test_date", v)} />
+            <Field label="Fonoaudiólogo" value={form.audiologist_name || ""} onChange={(v) => updateField("audiologist_name", v)} />
+
+            <div className="form-section-title">
+              <span>2. Resultado do teste</span>
+              <p>Após o atendimento, registre documentos, resultado e aprovação do paciente.</p>
+            </div>
             <Field label="Data do pedido médico" type="date" value={form.medical_request_date || ""} onChange={(v) => updateField("medical_request_date", v)} />
             <Field label="Data da audiometria" type="date" value={form.audiometry_date || ""} onChange={(v) => updateField("audiometry_date", v)} />
             <Field label="Perda auditiva" value={form.hearing_loss || ""} onChange={(v) => updateField("hearing_loss", v)} />
-            <Field label="Teste com aparelho" type="datetime-local" value={form.test_date || ""} onChange={(v) => updateField("test_date", v)} />
-            <Field label="Fonoaudiólogo" value={form.audiologist_name || ""} onChange={(v) => updateField("audiologist_name", v)} />
             <Field label="Resultado do teste" value={form.test_result || ""} onChange={(v) => updateField("test_result", v)} />
             <label className="checkbox">
               <input type="checkbox" checked={Boolean(form.patient_approved)} onChange={(event) => updateField("patient_approved", event.target.checked)} />
               Paciente aprovou o teste
             </label>
 
+            <div className="form-section-title">
+              <span>3. Pedido do aparelho</span>
+              <p>Quando o paciente aprovar, complete aparelho, acessórios, pagamento e envio à fábrica.</p>
+            </div>
             <Field label="Data do pedido à fábrica" type="date" value={form.order_date || ""} onChange={(v) => updateField("order_date", v)} />
             <Field label="Nº pedido fábrica" value={form.factory_order_number || ""} onChange={(v) => updateField("factory_order_number", v)} />
             <label>
@@ -584,6 +655,10 @@ export default function DashboardClient({ initialAuthenticated }) {
             <Field label="Acessórios / códigos" value={form.accessory_codes || ""} onChange={(v) => updateField("accessory_codes", v)} disabled />
             <Field label="Valor fábrica" value={form.factory_value_cents_display ?? centsToCurrency(form.factory_value_cents)} onChange={(v) => updateField("factory_value_cents_display", v)} disabled />
             <Field label="Valor paciente" value={form.patient_value_cents_display ?? centsToCurrency(form.patient_value_cents)} onChange={(v) => updateField("patient_value_cents_display", v)} />
+            <div className="form-section-title">
+              <span>4. Chegada, entrega e adaptação</span>
+              <p>Após a chegada do aparelho, marque o retorno para entrega e adaptação.</p>
+            </div>
             <Field label="Chegada do aparelho" type="date" value={form.arrival_date || ""} onChange={(v) => updateField("arrival_date", v)} />
             <Field label="Retorno/adaptação" type="datetime-local" value={form.adaptation_date || ""} onChange={(v) => updateField("adaptation_date", v)} />
             <label className="wide">

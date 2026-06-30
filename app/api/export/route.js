@@ -26,7 +26,6 @@ export async function GET(request) {
     "Status": statusLabel(row.status),
     "Paciente": row.patient_name,
     "CPF": row.cpf,
-    "Cartão SUS": row.sus_card,
     "Nascimento": row.birth_date,
     "Telefone": row.phone,
     "E-mail": row.email,
