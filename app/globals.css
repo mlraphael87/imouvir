@@ -48,6 +48,27 @@ button {
   transition: background .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease;
 }
 
+.button-link {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--teal-600);
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  background: var(--white);
+  color: var(--teal-800);
+  font-weight: 700;
+  text-decoration: none;
+  transition: background .16s ease, border-color .16s ease, color .16s ease;
+}
+
+.button-link:hover {
+  border-color: var(--teal-800);
+  background: var(--teal-800);
+  color: var(--white);
+}
+
 button:hover {
   border-color: var(--teal-800);
   background: var(--teal-800);
@@ -186,6 +207,54 @@ button:hover {
 .empty-accessory {
   margin: 0;
   color: var(--muted);
+}
+
+.document-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.document-upload {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(240px, 1fr) auto;
+  gap: .75rem;
+  align-items: end;
+}
+
+.document-list {
+  display: grid;
+  gap: .65rem;
+}
+
+.document-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .85rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+}
+
+.document-item div:first-child {
+  display: grid;
+  gap: .2rem;
+  min-width: 0;
+}
+
+.document-item strong {
+  color: var(--teal-950);
+}
+
+.document-item span {
+  color: var(--muted);
+  font-size: .88rem;
+  overflow-wrap: anywhere;
 }
 
 .app-shell {
@@ -733,8 +802,13 @@ td strong {
 
   .pipeline,
   .workflow-board,
+  .document-upload,
   .patient-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .document-upload button {
+    grid-column: 1 / -1;
   }
 }
 
@@ -754,9 +828,15 @@ td strong {
   .metrics,
   .pipeline,
   .workflow-board,
+  .document-upload,
   .patient-form,
   .calendar-summary {
     grid-template-columns: 1fr;
+  }
+
+  .document-item {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .calendar-grid {

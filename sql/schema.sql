@@ -76,6 +76,17 @@ create table if not exists payment_terms (
   unique(source, source_sheet, source_row)
 );
 
+create table if not exists patient_files (
+  id bigserial primary key,
+  patient_id bigint not null references patients(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  document_type text not null,
+  file_name text not null,
+  mime_type text not null,
+  file_size integer not null,
+  file_data bytea not null
+);
+
 alter table patients add column if not exists selected_payment_term_id bigint;
 alter table patients add column if not exists payment_terms text;
 alter table patients add column if not exists payment_description text;
@@ -116,6 +127,7 @@ create index if not exists catalog_products_kind_idx on catalog_products(item_ki
 create index if not exists catalog_products_category_idx on catalog_products(category);
 create index if not exists catalog_products_description_idx on catalog_products(lower(description));
 create index if not exists payment_terms_active_idx on payment_terms(active);
+create index if not exists patient_files_patient_idx on patient_files(patient_id, created_at desc);
 
 create or replace function set_patients_updated_at()
 returns trigger as $$

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { STATUSES, statusLabel } from "@/lib/status";
 
 const emptyForm = {
@@ -80,6 +80,20 @@ const workflowStages = [
   }
 ];
 
+const documentTypeOptions = [
+  { key: "medical_request", label: "Pedido médico" },
+  { key: "audiometry_exam", label: "Exame de audiometria" },
+  { key: "payment_receipt", label: "Comprovante de pagamento" },
+  { key: "other", label: "Outro documento" }
+];
+
+const documentTypeLabel = (key) => documentTypeOptions.find((item) => item.key === key)?.label || "Documento";
+const fileSizeLabel = (size) => {
+  const value = Number(size || 0);
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
+  return `${Math.max(1, Math.round(value / 1024))} KB`;
+};
+
 function appointmentDateTime(appointment) {
   const value = appointment.starts_at_local || String(appointment.starts_at || "").slice(0, 16);
   const [date = "", time = ""] = value.split("T");
@@ -110,6 +124,10 @@ export default function DashboardClient({ initialAuthenticated }) {
   const [stageFilter, setStageFilter] = useState("");
   const [activeWorkflowMetric, setActiveWorkflowMetric] = useState("");
   const [form, setForm] = useState(emptyForm);
+  const [patientFiles, setPatientFiles] = useState([]);
+  const [filesLoading, setFilesLoading] = useState(false);
+  const [uploadType, setUploadType] = useState("medical_request");
+  const [uploadFile, setUploadFile] = useState(null);
   const [catalog, setCatalog] = useState({ products: [], paymentTerms: [] });
   const [formMode, setFormMode] = useState("schedule");
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
@@ -118,6 +136,7 @@ export default function DashboardClient({ initialAuthenticated }) {
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef(null);
 
   const products = catalog.products || [];
   const devices = useMemo(() => products.filter((item) => item.item_kind === "device"), [products]);
@@ -222,6 +241,23 @@ export default function DashboardClient({ initialAuthenticated }) {
       products: data.products || [],
       paymentTerms: data.paymentTerms || []
     });
+  }
+
+  async function loadPatientFiles(patientId) {
+    if (!patientId) {
+      setPatientFiles([]);
+      return;
+    }
+
+    setFilesLoading(true);
+    const response = await fetch(`/api/patients/${patientId}/files`);
+    if (response.status === 401) {
+      setAuthenticated(false);
+      return;
+    }
+    const data = await response.json();
+    setPatientFiles(data.files || []);
+    setFilesLoading(false);
   }
 
   function findProduct(id) {
@@ -351,6 +387,7 @@ export default function DashboardClient({ initialAuthenticated }) {
   function edit(row, mode = "schedule") {
     setFormMode(mode);
     setEditingId(row.id);
+    loadPatientFiles(row.id);
     setForm({
       ...emptyForm,
       ...row,
@@ -373,6 +410,10 @@ export default function DashboardClient({ initialAuthenticated }) {
     setEditingId(null);
     setFormMode("schedule");
     setForm(emptyForm);
+    setPatientFiles([]);
+    setUploadFile(null);
+    setUploadType("medical_request");
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   function startOrder(row) {
@@ -461,6 +502,51 @@ export default function DashboardClient({ initialAuthenticated }) {
     setStageFilter("");
     setStatusFilter(statusFilter === status ? "" : status);
     showWorkflowMetric(`${stage.key}:${status}`);
+  }
+
+  async function uploadPatientFile() {
+    setMessage("");
+    if (!editingId) {
+      setMessage("Salve o cadastro antes de anexar documentos.");
+      return;
+    }
+    if (!uploadFile) {
+      setMessage("Selecione um arquivo para anexar.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("document_type", uploadType);
+    formData.append("file", uploadFile);
+
+    const response = await fetch(`/api/patients/${editingId}/files`, {
+      method: "POST",
+      body: formData
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setMessage(data.error || "Não foi possível anexar o arquivo.");
+      return;
+    }
+
+    setMessage("Documento anexado ao histórico do paciente.");
+    setUploadFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    await loadPatientFiles(editingId);
+  }
+
+  async function deletePatientFile(fileId) {
+    if (!window.confirm("Excluir este documento do histórico do paciente?")) return;
+
+    const response = await fetch(`/api/patients/${editingId}/files/${fileId}`, { method: "DELETE" });
+    if (!response.ok) {
+      const data = await response.json();
+      setMessage(data.error || "Não foi possível excluir o documento.");
+      return;
+    }
+
+    setMessage("Documento excluído.");
+    await loadPatientFiles(editingId);
   }
 
   if (!authenticated) {
@@ -766,6 +852,55 @@ export default function DashboardClient({ initialAuthenticated }) {
               Conferência de documentos
               <textarea value={form.documentation_notes || ""} onChange={(event) => updateField("documentation_notes", event.target.value)} />
             </label>
+            <div className="form-section-title">
+              <span>5. Documentos do paciente</span>
+              <p>Pedido médico, exame de audiometria e comprovantes ficam registrados no histórico.</p>
+            </div>
+            <div className="wide document-panel">
+              {editingId ? (
+                <>
+                  <div className="document-upload">
+                    <label>
+                      Tipo de documento
+                      <select value={uploadType} onChange={(event) => setUploadType(event.target.value)}>
+                        {documentTypeOptions.map((option) => (
+                          <option key={option.key} value={option.key}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Arquivo
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="application/pdf,image/jpeg,image/png,image/webp"
+                        onChange={(event) => setUploadFile(event.target.files?.[0] || null)}
+                      />
+                      <small>PDF, JPG, PNG ou WEBP até 4 MB.</small>
+                    </label>
+                    <button type="button" onClick={uploadPatientFile}>Anexar documento</button>
+                  </div>
+                  <div className="document-list">
+                    {filesLoading ? <p className="empty-accessory">Carregando documentos...</p> : null}
+                    {!filesLoading && !patientFiles.length ? <p className="empty-accessory">Nenhum documento anexado.</p> : null}
+                    {patientFiles.map((file) => (
+                      <div className="document-item" key={file.id}>
+                        <div>
+                          <strong>{documentTypeLabel(file.document_type)}</strong>
+                          <span>{file.file_name} · {fileSizeLabel(file.file_size)} · {new Date(file.created_at).toLocaleString("pt-BR")}</span>
+                        </div>
+                        <div className="row-actions">
+                          <a className="button-link" href={`/api/patients/${editingId}/files/${file.id}`} target="_blank" rel="noreferrer">Abrir</a>
+                          <button type="button" className="secondary" onClick={() => deletePatientFile(file.id)}>Excluir</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="empty-accessory">Salve o cadastro do paciente antes de anexar documentos.</p>
+              )}
+            </div>
             <div className="form-actions">
               <button type="button" className="secondary" onClick={(event) => savePatient(event, "order")}>
                 {editingId ? "Salvar pedido do aparelho" : "Cadastrar pedido"}
