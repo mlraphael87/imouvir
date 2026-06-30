@@ -13,10 +13,10 @@ function monthRange(monthParam) {
     throw new Error("Mês inválido.");
   }
 
-  const start = `${year}-${String(month).padStart(2, "0")}-01T00:00:00-04:00`;
+  const start = `${year}-${String(month).padStart(2, "0")}-01T00:00:00Z`;
   const nextMonth = month === 12 ? 1 : month + 1;
   const nextYear = month === 12 ? year + 1 : year;
-  const end = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01T00:00:00-04:00`;
+  const end = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01T00:00:00Z`;
   return { start, end };
 }
 
@@ -46,6 +46,7 @@ export async function GET(request) {
         device_model,
         factory_order_number,
         test_date as starts_at,
+        to_char(test_date at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI') as starts_at_local,
         'test_date' as event_type
       from patients
       where test_date >= ${range.start}::timestamptz
@@ -63,6 +64,7 @@ export async function GET(request) {
         device_model,
         factory_order_number,
         adaptation_date as starts_at,
+        to_char(adaptation_date at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI') as starts_at_local,
         'adaptation_date' as event_type
       from patients
       where adaptation_date >= ${range.start}::timestamptz

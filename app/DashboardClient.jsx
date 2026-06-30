@@ -49,7 +49,6 @@ const moneyLabel = (value) => `R$ ${centsToCurrency(value)}`;
 const monthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const monthLabel = (date) => date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-const timeLabel = (date) => date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 const eventTypeLabel = (type) => type === "adaptation_date" ? "Adaptação" : "Teste";
 const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const workflowStages = [
@@ -69,6 +68,26 @@ const workflowStages = [
     statuses: ["adaptacao_agendada", "concluido"]
   }
 ];
+
+function appointmentDateTime(appointment) {
+  const value = appointment.starts_at_local || String(appointment.starts_at || "").slice(0, 16);
+  const [date = "", time = ""] = value.split("T");
+  return { date, time };
+}
+
+function appointmentDateLabel(appointment) {
+  const { date, time } = appointmentDateTime(appointment);
+  const [year, month, day] = date.split("-");
+  return `${day}/${month}/${year} às ${time}`;
+}
+
+function whatsappHref(appointment) {
+  const digits = String(appointment.phone || "").replace(/\D/g, "");
+  if (!digits) return "";
+  const phone = digits.startsWith("55") ? digits : `55${digits}`;
+  const message = `Olá, o Instituto Imouvir gostaria de confirmar seu agendamento para o teste de aparelho auditivo que está marcado para ${appointmentDateLabel(appointment)}?`;
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
 
 export default function DashboardClient({ initialAuthenticated }) {
   const [authenticated, setAuthenticated] = useState(initialAuthenticated);
@@ -93,7 +112,7 @@ export default function DashboardClient({ initialAuthenticated }) {
   const appointmentsByDay = useMemo(() => {
     const grouped = {};
     for (const appointment of appointments) {
-      const key = dateKey(new Date(appointment.starts_at));
+      const key = appointmentDateTime(appointment).date;
       grouped[key] = [...(grouped[key] || []), appointment];
     }
     return grouped;
@@ -536,18 +555,24 @@ export default function DashboardClient({ initialAuthenticated }) {
                   <span className="calendar-date">{day.date.getDate()}</span>
                   <div className="calendar-events">
                     {dayAppointments.map((appointment) => {
-                      const startsAt = new Date(appointment.starts_at);
+                      const { time } = appointmentDateTime(appointment);
+                      const whatsapp = whatsappHref(appointment);
                       return (
-                        <button
-                          type="button"
+                        <div
                           className={`calendar-event ${appointment.event_type === "adaptation_date" ? "adaptation-event" : "test-event"}`}
                           key={`${appointment.event_type}-${appointment.id}-${appointment.starts_at}`}
-                          onClick={() => editAppointment(appointment)}
                         >
-                          <span>{timeLabel(startsAt)} · {eventTypeLabel(appointment.event_type)}</span>
+                          <span>{time} · {eventTypeLabel(appointment.event_type)}</span>
                           <strong>{appointment.patient_name}</strong>
-                          <small>{[appointment.city, appointment.state].filter(Boolean).join(" / ") || appointment.phone || "Sem local"}</small>
-                        </button>
+                          {whatsapp ? (
+                            <a className="whatsapp-link" href={whatsapp} target="_blank" rel="noreferrer">
+                              {appointment.phone}
+                            </a>
+                          ) : (
+                            <small>Sem telefone</small>
+                          )}
+                          <button type="button" className="calendar-edit" onClick={() => editAppointment(appointment)}>Editar</button>
+                        </div>
                       );
                     })}
                   </div>
