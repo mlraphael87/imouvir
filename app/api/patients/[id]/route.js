@@ -37,6 +37,7 @@ export async function PATCH(request, context) {
       payment_code = ${data.payment_code},
       selected_device_product_id = ${data.selected_device_product_id},
       selected_accessory_product_ids = ${data.selected_accessory_product_ids}::bigint[],
+      accessory_items = ${JSON.stringify(data.accessory_items)}::jsonb,
       device_side = ${data.device_side},
       device_brand = ${data.device_brand},
       device_model = ${data.device_model},

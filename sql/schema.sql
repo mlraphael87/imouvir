@@ -31,6 +31,7 @@ create table if not exists patients (
   payment_code text,
   selected_device_product_id bigint,
   selected_accessory_product_ids bigint[] not null default '{}',
+  accessory_items jsonb not null default '[]'::jsonb,
   device_side text default 'bilateral',
   device_brand text,
   device_model text,
@@ -81,6 +82,7 @@ alter table patients add column if not exists payment_description text;
 alter table patients add column if not exists payment_code text;
 alter table patients add column if not exists selected_device_product_id bigint;
 alter table patients add column if not exists selected_accessory_product_ids bigint[] not null default '{}';
+alter table patients add column if not exists accessory_items jsonb not null default '[]'::jsonb;
 
 do $$
 begin

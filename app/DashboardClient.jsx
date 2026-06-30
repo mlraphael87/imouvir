@@ -29,6 +29,7 @@ const emptyForm = {
   payment_code: "",
   selected_device_product_id: "",
   selected_accessory_product_ids: [],
+  accessory_items: [],
   device_side: "bilateral",
   device_brand: "",
   device_model: "",
@@ -130,32 +131,54 @@ export default function DashboardClient({ initialAuthenticated }) {
     return `${code}${product.description} (${moneyLabel(product.unit_value_cents)})`;
   }
 
+  function normalizeAccessoryItems(items) {
+    return (items || [])
+      .map((item) => ({
+        product_id: item.product_id ? String(item.product_id) : "",
+        quantity: Math.max(1, Number(item.quantity || 1))
+      }))
+      .filter((item) => item.product_id);
+  }
+
+  function accessoryItemsFromLegacyIds(ids) {
+    return (ids || []).map((id) => ({ product_id: String(id), quantity: 1 }));
+  }
+
   function calculateFactoryValueCents(nextForm) {
     const selectedDevice = findProduct(nextForm.selected_device_product_id);
-    const selectedAccessories = (nextForm.selected_accessory_product_ids || [])
-      .map(findProduct)
-      .filter(Boolean);
+    const accessoryItems = normalizeAccessoryItems(
+      nextForm.accessory_items?.length ? nextForm.accessory_items : accessoryItemsFromLegacyIds(nextForm.selected_accessory_product_ids)
+    );
     const deviceQuantity = selectedDevice ? (nextForm.device_side === "bilateral" ? 2 : 1) : 0;
     const deviceTotal = selectedDevice ? Number(selectedDevice.unit_value_cents || 0) * deviceQuantity : 0;
-    const accessoriesTotal = selectedAccessories.reduce((sum, item) => sum + Number(item.unit_value_cents || 0), 0);
+    const accessoriesTotal = accessoryItems.reduce((sum, item) => {
+      const product = findProduct(item.product_id);
+      return sum + (product ? Number(product.unit_value_cents || 0) * Number(item.quantity || 1) : 0);
+    }, 0);
     return deviceTotal + accessoriesTotal;
   }
 
   function hydrateCatalogFields(nextForm) {
     const selectedDevice = findProduct(nextForm.selected_device_product_id);
-    const selectedAccessories = (nextForm.selected_accessory_product_ids || [])
-      .map(findProduct)
-      .filter(Boolean);
+    const accessoryItems = normalizeAccessoryItems(
+      nextForm.accessory_items?.length ? nextForm.accessory_items : accessoryItemsFromLegacyIds(nextForm.selected_accessory_product_ids)
+    );
+    const selectedAccessoryProductIds = [...new Set(accessoryItems.map((item) => Number(item.product_id)).filter(Boolean))];
     const side = nextForm.device_side || "bilateral";
     const deviceCode = selectedDevice?.code || "";
 
     return {
       ...nextForm,
+      accessory_items: accessoryItems,
+      selected_accessory_product_ids: selectedAccessoryProductIds,
       device_brand: selectedDevice ? "Sonic" : nextForm.device_brand,
       device_model: selectedDevice?.description || nextForm.device_model,
       right_device_code: side === "esquerdo" ? "" : deviceCode,
       left_device_code: side === "direito" ? "" : deviceCode,
-      accessory_codes: selectedAccessories.map((item) => `${item.code || "sem código"} - ${item.description}`).join("; "),
+      accessory_codes: accessoryItems.map((item) => {
+        const product = findProduct(item.product_id);
+        return product ? `${item.quantity}x ${product.code || "sem codigo"} - ${product.description}` : "";
+      }).filter(Boolean).join("; "),
       factory_value_cents: calculateFactoryValueCents(nextForm),
       factory_value_cents_display: undefined
     };
@@ -164,11 +187,36 @@ export default function DashboardClient({ initialAuthenticated }) {
   function updateField(key, value) {
     setForm((current) => {
       const next = { ...current, [key]: value };
-      if (["selected_device_product_id", "selected_accessory_product_ids", "device_side"].includes(key)) {
+      if (["selected_device_product_id", "selected_accessory_product_ids", "accessory_items", "device_side"].includes(key)) {
         return hydrateCatalogFields(next);
       }
       return next;
     });
+  }
+
+  function addAccessoryItem() {
+    setForm((current) => ({
+      ...current,
+      accessory_items: [...(current.accessory_items || []), { product_id: "", quantity: 1 }]
+    }));
+  }
+
+  function updateAccessoryItem(index, key, value) {
+    setForm((current) => {
+      const accessoryItems = [...(current.accessory_items || [])];
+      accessoryItems[index] = {
+        ...accessoryItems[index],
+        [key]: key === "quantity" ? Math.max(1, Number(value || 1)) : value
+      };
+      return hydrateCatalogFields({ ...current, accessory_items: accessoryItems });
+    });
+  }
+
+  function removeAccessoryItem(index) {
+    setForm((current) => hydrateCatalogFields({
+      ...current,
+      accessory_items: (current.accessory_items || []).filter((_, itemIndex) => itemIndex !== index)
+    }));
   }
 
   function updatePaymentTerm(id) {
@@ -195,6 +243,7 @@ export default function DashboardClient({ initialAuthenticated }) {
       selected_payment_term_id: row.selected_payment_term_id || "",
       selected_device_product_id: row.selected_device_product_id || "",
       selected_accessory_product_ids: row.selected_accessory_product_ids || [],
+      accessory_items: row.accessory_items?.length ? row.accessory_items : accessoryItemsFromLegacyIds(row.selected_accessory_product_ids),
       arrival_date: row.arrival_date || "",
       adaptation_date: row.adaptation_date ? row.adaptation_date.slice(0, 16) : ""
     });
@@ -213,6 +262,7 @@ export default function DashboardClient({ initialAuthenticated }) {
       selected_payment_term_id: form.selected_payment_term_id || null,
       selected_device_product_id: form.selected_device_product_id || null,
       selected_accessory_product_ids: form.selected_accessory_product_ids || [],
+      accessory_items: normalizeAccessoryItems(form.accessory_items),
       factory_value_cents: currencyToCents(form.factory_value_cents_display ?? centsToCurrency(form.factory_value_cents)),
       patient_value_cents: currencyToCents(form.patient_value_cents_display ?? centsToCurrency(form.patient_value_cents))
     };
@@ -375,19 +425,49 @@ export default function DashboardClient({ initialAuthenticated }) {
                 <option value="esquerdo">Esquerdo</option>
               </select>
             </label>
-            <label className="wide">
-              Acessórios e itens adicionais
-              <select
-                multiple
-                value={(form.selected_accessory_product_ids || []).map(String)}
-                onChange={(event) => updateField(
-                  "selected_accessory_product_ids",
-                  Array.from(event.target.selectedOptions).map((option) => option.value)
-                )}
-              >
-                {accessories.map((product) => <option key={product.id} value={product.id}>{product.category} | {productLabel(product)}</option>)}
-              </select>
-            </label>
+            <div className="wide accessory-builder">
+              <div className="accessory-heading">
+                <strong>Acessórios e itens adicionais</strong>
+                <button type="button" className="secondary" onClick={addAccessoryItem}>Adicionar item</button>
+              </div>
+              {(form.accessory_items || []).length ? (
+                <div className="accessory-list">
+                  {(form.accessory_items || []).map((item, index) => {
+                    const product = findProduct(item.product_id);
+                    const subtotal = product ? Number(product.unit_value_cents || 0) * Number(item.quantity || 1) : 0;
+
+                    return (
+                      <div className="accessory-row" key={`${item.product_id || "novo"}-${index}`}>
+                        <label>
+                          Item
+                          <select value={item.product_id || ""} onChange={(event) => updateAccessoryItem(index, "product_id", event.target.value)}>
+                            <option value="">Selecione</option>
+                            {accessories.map((productOption) => (
+                              <option key={productOption.id} value={productOption.id}>
+                                {productOption.category} | {productLabel(productOption)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          Quantidade
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity || 1}
+                            onChange={(event) => updateAccessoryItem(index, "quantity", event.target.value)}
+                          />
+                        </label>
+                        <span className="accessory-subtotal">{moneyLabel(subtotal)}</span>
+                        <button type="button" className="secondary" onClick={() => removeAccessoryItem(index)}>Remover</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="empty-accessory">Nenhum acessório adicionado.</p>
+              )}
+            </div>
             <Field label="Marca" value={form.device_brand || ""} onChange={(v) => updateField("device_brand", v)} disabled />
             <Field label="Modelo" value={form.device_model || ""} onChange={(v) => updateField("device_model", v)} disabled />
             <Field label="Código direito" value={form.right_device_code || ""} onChange={(v) => updateField("right_device_code", v)} disabled />

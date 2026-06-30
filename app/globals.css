@@ -132,6 +132,52 @@ button:hover {
   background: var(--paper);
 }
 
+.accessory-builder {
+  display: grid;
+  gap: .75rem;
+}
+
+.accessory-heading,
+.accessory-row {
+  display: grid;
+  gap: .75rem;
+  align-items: end;
+}
+
+.accessory-heading {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.accessory-heading strong {
+  color: var(--teal-950);
+}
+
+.accessory-list {
+  display: grid;
+  gap: .75rem;
+}
+
+.accessory-row {
+  grid-template-columns: minmax(260px, 1fr) 130px 110px auto;
+  padding: .85rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+.accessory-subtotal {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--teal-800);
+  font-weight: 800;
+}
+
+.empty-accessory {
+  margin: 0;
+  color: var(--muted);
+}
+
 .app-shell {
   min-height: 100vh;
   display: grid;
@@ -397,6 +443,11 @@ td strong {
   .metrics,
   .pipeline,
   .patient-form {
+    grid-template-columns: 1fr;
+  }
+
+  .accessory-heading,
+  .accessory-row {
     grid-template-columns: 1fr;
   }
 

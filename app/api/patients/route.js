@@ -54,7 +54,7 @@ export async function POST(request) {
       test_date, audiologist_name, test_result, patient_approved,
       order_date, factory_order_number, selected_payment_term_id, payment_terms,
       payment_description, payment_code, selected_device_product_id,
-      selected_accessory_product_ids, device_side, device_brand, device_model,
+      selected_accessory_product_ids, accessory_items, device_side, device_brand, device_model,
       right_device_code, left_device_code, accessory_codes, factory_value_cents,
       patient_value_cents, arrival_date, adaptation_date, notes
     ) values (
@@ -65,6 +65,7 @@ export async function POST(request) {
       ${data.order_date}, ${data.factory_order_number}, ${data.selected_payment_term_id},
       ${data.payment_terms}, ${data.payment_description}, ${data.payment_code},
       ${data.selected_device_product_id}, ${data.selected_accessory_product_ids}::bigint[],
+      ${JSON.stringify(data.accessory_items)}::jsonb,
       ${data.device_side}, ${data.device_brand}, ${data.device_model}, ${data.right_device_code}, ${data.left_device_code},
       ${data.accessory_codes}, ${data.factory_value_cents}, ${data.patient_value_cents},
       ${data.arrival_date}, ${data.adaptation_date}, ${data.notes}
