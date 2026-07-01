@@ -46,6 +46,14 @@ function clearItemRows(worksheet, rows) {
   }
 }
 
+function keepOnlySheet(workbook, sheetName) {
+  workbook.SheetNames = [sheetName];
+  workbook.Sheets = { [sheetName]: workbook.Sheets[sheetName] };
+  if (workbook.Workbook?.Sheets) {
+    workbook.Workbook.Sheets = workbook.Workbook.Sheets.filter((sheet) => sheet.name === sheetName);
+  }
+}
+
 function cityLabel(row) {
   return [row.city, row.state].filter(Boolean).join(" - ");
 }
@@ -127,6 +135,7 @@ async function buildOrderWorkbook(sql, row) {
 
   setCell(worksheet, "F29", total);
   setCell(worksheet, "F40", 0);
+  keepOnlySheet(workbook, ORDER_SHEET);
 
   return workbook;
 }
