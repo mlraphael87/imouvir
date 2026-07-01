@@ -244,7 +244,9 @@ export default function DashboardClient({ initialAuthenticated }) {
   async function loadPatients() {
     setLoading(true);
     const params = new URLSearchParams();
-    if (query) params.set("q", query);
+    const searchQuery = query.trim();
+    if (searchQuery) params.set("q", searchQuery);
+    params.set("limit", searchQuery ? "200" : "3");
     if (statusFilter) params.set("status", statusFilter);
     const response = await fetch(`/api/patients?${params.toString()}`);
     if (response.status === 401) {
@@ -1053,7 +1055,7 @@ export default function DashboardClient({ initialAuthenticated }) {
               <h2>Pedidos cadastrados</h2>
             </div>
             <div className="filters">
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar nome, CPF ou telefone" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar nome, CPF, telefone, cidade, modelo ou pedido" />
               <button className="secondary" onClick={loadPatients}>{loading ? "Buscando..." : "Buscar"}</button>
             </div>
           </div>

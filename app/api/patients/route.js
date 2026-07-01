@@ -41,7 +41,12 @@ export async function GET(request) {
     where (${q || null}::text is null
       or lower(patient_name) like lower(${"%" + q + "%"})
       or coalesce(phone, '') like ${"%" + q + "%"}
-      or coalesce(cpf, '') like ${"%" + q + "%"})
+      or coalesce(cpf, '') like ${"%" + q + "%"}
+      or lower(coalesce(email, '')) like lower(${"%" + q + "%"})
+      or lower(coalesce(city, '')) like lower(${"%" + q + "%"})
+      or lower(coalesce(state, '')) like lower(${"%" + q + "%"})
+      or lower(coalesce(device_model, '')) like lower(${"%" + q + "%"})
+      or lower(coalesce(factory_order_number, '')) like lower(${"%" + q + "%"}))
     and (${status || null}::text is null or status = ${status})
     order by updated_at desc
     limit ${limit}
