@@ -159,12 +159,12 @@ async function buildOrderBuffer(sql, row) {
   clearTemplateRows(cells, ORDER_ROWS);
   clearTemplateRows(cells, BONUS_ROWS);
 
-  setTemplateCell(cells, "E3", row.factory_order_number || `CRM ${row.id}`);
-  setTemplateCell(cells, "B7", patientOrderName(row));
-  setTemplateCell(cells, "E7", cityLabel(row));
-  setTemplateCell(cells, "B8", row.payment_terms || "");
-  setTemplateCell(cells, "E8", row.payment_description || row.payment_terms || "");
-  setTemplateCell(cells, "B9", row.payment_code || "");
+  setTemplateCell(cells, "F3", row.factory_order_number || `CRM ${row.id}`);
+  setTemplateCell(cells, "C7", patientOrderName(row));
+  setTemplateCell(cells, "F7", cityLabel(row));
+  setTemplateCell(cells, "C8", row.payment_terms || "");
+  setTemplateCell(cells, "F8", row.payment_description || row.payment_terms || "");
+  setTemplateCell(cells, "C9", row.payment_code || "");
 
   let total = 0;
   items.slice(0, ORDER_ROWS.length).forEach((item, index) => {
