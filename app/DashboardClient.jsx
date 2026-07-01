@@ -826,8 +826,7 @@ export default function DashboardClient({ initialAuthenticated }) {
                 placeholder="(65) 99999-9999"
               />
               <Field label="E-mail" type="email" value={form.email || ""} onChange={(v) => updateField("email", v)} placeholder="nome@email.com" />
-              <Field label="Cidade" value={form.city || ""} onChange={(v) => updateField("city", v)} />
-              <Field label="UF" value={form.state || ""} onChange={(v) => updateField("state", v)} />
+              <Field label="Cidade - UF" value={form.city || ""} onChange={(v) => updateField("city", v)} placeholder="Ex.: Cuiabá - MT" />
 
               <label>
                 Etapa atual
@@ -1034,7 +1033,7 @@ export default function DashboardClient({ initialAuthenticated }) {
                 <tr>
                   <th>Paciente</th>
                   <th>Status</th>
-                  <th>Cidade</th>
+                  <th>Cidade - UF</th>
                   <th>Teste</th>
                   <th>Modelo</th>
                   <th>Pedido</th>
@@ -1050,7 +1049,7 @@ export default function DashboardClient({ initialAuthenticated }) {
                       <small>{row.phone ? formatPhone(row.phone) : "Sem telefone"}</small>
                     </td>
                     <td><span className="pill">{statusLabel(row.status)}</span></td>
-                    <td>{[row.city, row.state].filter(Boolean).join(" / ") || "-"}</td>
+                    <td>{[row.city, row.state].filter(Boolean).join(" - ") || "-"}</td>
                     <td>{patientDateTimeLabel(row.test_date)}</td>
                     <td>{row.device_model || "-"}</td>
                     <td>{row.factory_order_number || "-"}</td>
