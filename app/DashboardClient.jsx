@@ -570,9 +570,17 @@ export default function DashboardClient({ initialAuthenticated }) {
   }
 
   function exportExcel() {
+    if (editingId) {
+      window.location.href = `/api/export?ids=${editingId}`;
+      return;
+    }
     const params = new URLSearchParams();
     if (statusFilter) params.set("status", statusFilter);
     window.location.href = `/api/export?${params.toString()}`;
+  }
+
+  function exportPatientExcel(row) {
+    window.location.href = `/api/export?ids=${row.id}`;
   }
 
   function countStatus(status) {
@@ -1097,6 +1105,7 @@ export default function DashboardClient({ initialAuthenticated }) {
                         <button className="secondary" onClick={(event) => { event.stopPropagation(); edit(row, "schedule"); }}>Editar cadastro</button>
                         <button className="secondary" onClick={(event) => { event.stopPropagation(); startOrder(row); }}>Fazer pedido</button>
                         <button className="secondary" onClick={(event) => { event.stopPropagation(); startDocuments(row); }}>Documentos</button>
+                        <button className="secondary" onClick={(event) => { event.stopPropagation(); exportPatientExcel(row); }}>Excel</button>
                       </div>
                     </td>
                   </tr>
