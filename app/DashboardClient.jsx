@@ -569,14 +569,12 @@ export default function DashboardClient({ initialAuthenticated }) {
     if (!appointmentDate) loadAppointments();
   }
 
-  function exportExcel() {
-    if (editingId) {
-      window.location.href = `/api/export?ids=${editingId}`;
+  function exportCurrentPatientOrder() {
+    if (!editingId) {
+      setMessage("Salve ou abra um cadastro antes de gerar o pedido.");
       return;
     }
-    const params = new URLSearchParams();
-    if (statusFilter) params.set("status", statusFilter);
-    window.location.href = `/api/export?${params.toString()}`;
+    window.location.href = `/api/export?ids=${editingId}`;
   }
 
   function exportPatientExcel(row) {
@@ -698,7 +696,6 @@ export default function DashboardClient({ initialAuthenticated }) {
             <p className="eyebrow">Operação IMOUVIR</p>
             <h1>Dashboard de pedidos</h1>
           </div>
-          <button onClick={exportExcel}>Gerar Excel</button>
         </header>
 
         <section className="workflow-board">
@@ -891,9 +888,12 @@ export default function DashboardClient({ initialAuthenticated }) {
             </div>
 
             <div className={formStepClass("pedido")}>
-              <div className="form-section-title">
-                <span>3. Pedido do aparelho</span>
-                <p>Quando o paciente aprovar, complete aparelho, acessórios, pagamento e envio à fábrica.</p>
+              <div className="form-section-title section-with-action">
+                <div>
+                  <span>3. Pedido do aparelho</span>
+                  <p>Quando o paciente aprovar, complete aparelho, acessórios, pagamento e envio à fábrica.</p>
+                </div>
+                <button type="button" onClick={exportCurrentPatientOrder}>Gerar pedido</button>
               </div>
             <Field label="Data do pedido à fábrica" type="date" value={form.order_date || ""} onChange={(v) => updateField("order_date", v)} />
             <Field label="Nº pedido fábrica" value={form.factory_order_number || ""} onChange={(v) => updateField("factory_order_number", v)} />
@@ -1105,7 +1105,7 @@ export default function DashboardClient({ initialAuthenticated }) {
                         <button className="secondary" onClick={(event) => { event.stopPropagation(); edit(row, "schedule"); }}>Editar cadastro</button>
                         <button className="secondary" onClick={(event) => { event.stopPropagation(); startOrder(row); }}>Fazer pedido</button>
                         <button className="secondary" onClick={(event) => { event.stopPropagation(); startDocuments(row); }}>Documentos</button>
-                        <button className="secondary" onClick={(event) => { event.stopPropagation(); exportPatientExcel(row); }}>Excel</button>
+                        <button className="secondary" onClick={(event) => { event.stopPropagation(); exportPatientExcel(row); }}>Gerar pedido</button>
                       </div>
                     </td>
                   </tr>

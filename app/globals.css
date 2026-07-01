@@ -585,6 +585,17 @@ td small {
   background: var(--mint-100);
 }
 
+.section-with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.section-with-action button {
+  flex: 0 0 auto;
+}
+
 .form-section-title span {
   display: block;
   color: var(--teal-950);
@@ -899,6 +910,7 @@ td strong {
   .topbar,
   .panel-heading,
   .filters,
+  .section-with-action,
   .calendar-controls {
     align-items: stretch;
     flex-direction: column;
