@@ -504,30 +504,31 @@ export default function DashboardClient({ initialAuthenticated }) {
     }
   }
 
-  async function savePatient(event, intent = formMode) {
-    event.preventDefault();
+  async function savePatient(event, intent = formMode, options = {}) {
+    event?.preventDefault();
+    const shouldReset = options.reset !== false;
     setMessage("");
     if (!form.patient_name?.trim()) {
       setMessage("Informe o nome do paciente.");
-      return;
+      return null;
     }
     if (!isValidPhone(form.phone)) {
       setMessage("Informe um telefone valido com 11 digitos: 2 de DDD + 9 do telefone.");
-      return;
+      return null;
     }
     if (!isValidCpf(form.cpf)) {
       setMessage("Informe um CPF valido.");
       setActiveFormStep("cadastro");
-      return;
+      return null;
     }
     if (!isValidEmail(form.email)) {
       setMessage("Informe um e-mail valido.");
       setActiveFormStep("cadastro");
-      return;
+      return null;
     }
     if (intent === "schedule" && !editingId && !form.test_date) {
       setMessage("Informe a data e horário do teste para aparecer na agenda.");
-      return;
+      return null;
     }
     const payload = {
       ...form,
@@ -555,7 +556,7 @@ export default function DashboardClient({ initialAuthenticated }) {
     const data = await response.json();
     if (!response.ok) {
       setMessage(data.error || "Não foi possível salvar.");
-      return;
+      return null;
     }
     setMessage(editingId ? "Edição salva." : intent === "schedule" ? "Cadastro e agendamento salvos." : "Pedido cadastrado.");
     const appointmentDate = data.row?.test_date || data.row?.adaptation_date;
@@ -564,17 +565,19 @@ export default function DashboardClient({ initialAuthenticated }) {
       setCalendarMonth(new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1));
       await loadAppointments(nextMonth);
     }
-    resetForm();
+    if (shouldReset) resetForm();
     loadPatients();
     if (!appointmentDate) loadAppointments();
+    return data.row;
   }
 
-  function exportCurrentPatientOrder() {
-    if (!editingId) {
+  async function exportCurrentPatientOrder(event) {
+    const row = await savePatient(event, editingId ? "edit" : "order", { reset: false });
+    if (!row?.id) {
       setMessage("Salve ou abra um cadastro antes de gerar o pedido.");
       return;
     }
-    window.location.href = `/api/export?ids=${editingId}`;
+    window.location.href = `/api/export?ids=${row.id}`;
   }
 
   function exportPatientExcel(row) {
