@@ -144,6 +144,15 @@ function appointmentDateLabel(appointment) {
   return `${day}/${month}/${year} às ${time}`;
 }
 
+function patientDateTimeLabel(value) {
+  if (!value) return "-";
+  const [date = "", timeWithSeconds = ""] = String(value).slice(0, 16).split("T");
+  const [year, month, day] = date.split("-");
+  const time = timeWithSeconds.slice(0, 5);
+  if (!year || !month || !day || !time) return "-";
+  return `${day}/${month}/${year}, ${time}`;
+}
+
 function whatsappHref(appointment) {
   const digits = onlyDigits(appointment.phone);
   if (!isValidPhone(digits)) return "";
@@ -1042,7 +1051,7 @@ export default function DashboardClient({ initialAuthenticated }) {
                     </td>
                     <td><span className="pill">{statusLabel(row.status)}</span></td>
                     <td>{[row.city, row.state].filter(Boolean).join(" / ") || "-"}</td>
-                    <td>{row.test_date ? new Date(row.test_date).toLocaleString("pt-BR") : "-"}</td>
+                    <td>{patientDateTimeLabel(row.test_date)}</td>
                     <td>{row.device_model || "-"}</td>
                     <td>{row.factory_order_number || "-"}</td>
                     <td><span className="pill">{row.document_count || 0}</span></td>
