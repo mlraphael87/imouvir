@@ -87,6 +87,14 @@ const documentTypeOptions = [
   { key: "other", label: "Outro documento" }
 ];
 
+const formSteps = [
+  { key: "cadastro", label: "Cadastro" },
+  { key: "teste", label: "Teste" },
+  { key: "pedido", label: "Pedido" },
+  { key: "entrega", label: "Entrega" },
+  { key: "documentos", label: "Documentos" }
+];
+
 const documentTypeLabel = (key) => documentTypeOptions.find((item) => item.key === key)?.label || "Documento";
 const fileSizeLabel = (size) => {
   const value = Number(size || 0);
@@ -124,6 +132,7 @@ export default function DashboardClient({ initialAuthenticated }) {
   const [stageFilter, setStageFilter] = useState("");
   const [activeWorkflowMetric, setActiveWorkflowMetric] = useState("");
   const [form, setForm] = useState(emptyForm);
+  const [activeFormStep, setActiveFormStep] = useState("cadastro");
   const [patientFiles, setPatientFiles] = useState([]);
   const [filesLoading, setFilesLoading] = useState(false);
   const [uploadType, setUploadType] = useState("medical_request");
@@ -386,6 +395,7 @@ export default function DashboardClient({ initialAuthenticated }) {
 
   function edit(row, mode = "schedule") {
     setFormMode(mode);
+    setActiveFormStep(mode === "order" ? "pedido" : "cadastro");
     setEditingId(row.id);
     loadPatientFiles(row.id);
     setForm({
@@ -409,6 +419,7 @@ export default function DashboardClient({ initialAuthenticated }) {
   function resetForm() {
     setEditingId(null);
     setFormMode("schedule");
+    setActiveFormStep("cadastro");
     setForm(emptyForm);
     setPatientFiles([]);
     setUploadFile(null);
@@ -418,6 +429,7 @@ export default function DashboardClient({ initialAuthenticated }) {
 
   function startOrder(row) {
     edit(row, "order");
+    setActiveFormStep("pedido");
     document.getElementById("novo-pedido")?.scrollIntoView({ behavior: "smooth" });
   }
 
@@ -486,6 +498,10 @@ export default function DashboardClient({ initialAuthenticated }) {
 
   function metricButtonClass(isActive, key) {
     return ["mini-filter", isActive ? "active" : "", activeWorkflowMetric === key ? "show-count" : ""].filter(Boolean).join(" ");
+  }
+
+  function formStepClass(step) {
+    return activeFormStep === step ? "form-step-panel active" : "form-step-panel";
   }
 
   function showWorkflowMetric(key) {
@@ -708,7 +724,7 @@ export default function DashboardClient({ initialAuthenticated }) {
               <button type="button" className={formMode === "schedule" ? "mode-active" : ""} onClick={(event) => savePatient(event, "schedule")}>
                 Salvar agendamento
               </button>
-              <button type="button" className={formMode === "order" ? "secondary mode-active" : "secondary"} onClick={() => setFormMode("order")}>
+              <button type="button" className={formMode === "order" ? "secondary mode-active" : "secondary"} onClick={() => { setFormMode("order"); setActiveFormStep("pedido"); }}>
                 Fazer pedido
               </button>
               {editingId ? <button type="button" className="secondary" onClick={(event) => savePatient(event, "edit")}>Salvar edição</button> : null}
@@ -716,51 +732,69 @@ export default function DashboardClient({ initialAuthenticated }) {
           </div>
 
           <form className="patient-form" onSubmit={savePatient}>
-            <div className="form-section-title">
-              <span>1. Cadastro e agendamento do teste</span>
-              <p>Primeiro contato: dados pessoais e horário com o fonoaudiólogo.</p>
+            <div className="form-step-tabs">
+              {formSteps.map((step) => (
+                <button
+                  type="button"
+                  key={step.key}
+                  className={activeFormStep === step.key ? "form-step-tab active" : "form-step-tab"}
+                  onClick={() => setActiveFormStep(step.key)}
+                >
+                  {step.label}
+                </button>
+              ))}
             </div>
-            <Field label="Nome do paciente" required value={form.patient_name} onChange={(v) => updateField("patient_name", v)} />
-            <Field label="CPF" value={form.cpf || ""} onChange={(v) => updateField("cpf", v)} />
-            <Field label="Nascimento" type="date" value={form.birth_date || ""} onChange={(v) => updateField("birth_date", v)} />
-            <Field
-              label="Telefone"
-              value={formatPhone(form.phone)}
-              onChange={(v) => updateField("phone", formatPhone(v))}
-              inputMode="numeric"
-              maxLength={15}
-              placeholder="(65) 99999-9999"
-            />
-            <Field label="E-mail" value={form.email || ""} onChange={(v) => updateField("email", v)} />
-            <Field label="Cidade" value={form.city || ""} onChange={(v) => updateField("city", v)} />
-            <Field label="UF" value={form.state || ""} onChange={(v) => updateField("state", v)} />
 
-            <label>
-              Etapa atual
-              <select value={form.status} onChange={(event) => updateField("status", event.target.value)}>
-                {STATUSES.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}
-              </select>
-            </label>
-            <Field label="Teste com aparelho" type="datetime-local" value={form.test_date || ""} onChange={(v) => updateField("test_date", v)} />
-            <Field label="Fonoaudiólogo" value={form.audiologist_name || ""} onChange={(v) => updateField("audiologist_name", v)} />
+            <div className={formStepClass("cadastro")}>
+              <div className="form-section-title">
+                <span>1. Cadastro e agendamento do teste</span>
+                <p>Primeiro contato: dados pessoais e horário com o fonoaudiólogo.</p>
+              </div>
+              <Field label="Nome do paciente" required value={form.patient_name} onChange={(v) => updateField("patient_name", v)} />
+              <Field label="CPF" value={form.cpf || ""} onChange={(v) => updateField("cpf", v)} />
+              <Field label="Nascimento" type="date" value={form.birth_date || ""} onChange={(v) => updateField("birth_date", v)} />
+              <Field
+                label="Telefone"
+                value={formatPhone(form.phone)}
+                onChange={(v) => updateField("phone", formatPhone(v))}
+                inputMode="numeric"
+                maxLength={15}
+                placeholder="(65) 99999-9999"
+              />
+              <Field label="E-mail" value={form.email || ""} onChange={(v) => updateField("email", v)} />
+              <Field label="Cidade" value={form.city || ""} onChange={(v) => updateField("city", v)} />
+              <Field label="UF" value={form.state || ""} onChange={(v) => updateField("state", v)} />
 
-            <div className="form-section-title">
-              <span>2. Resultado do teste</span>
-              <p>Após o atendimento, registre documentos, resultado e aprovação do paciente.</p>
+              <label>
+                Etapa atual
+                <select value={form.status} onChange={(event) => updateField("status", event.target.value)}>
+                  {STATUSES.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}
+                </select>
+              </label>
+              <Field label="Teste com aparelho" type="datetime-local" value={form.test_date || ""} onChange={(v) => updateField("test_date", v)} />
+              <Field label="Fonoaudiólogo" value={form.audiologist_name || ""} onChange={(v) => updateField("audiologist_name", v)} />
             </div>
-            <Field label="Data do pedido médico" type="date" value={form.medical_request_date || ""} onChange={(v) => updateField("medical_request_date", v)} />
-            <Field label="Data da audiometria" type="date" value={form.audiometry_date || ""} onChange={(v) => updateField("audiometry_date", v)} />
-            <Field label="Perda auditiva" value={form.hearing_loss || ""} onChange={(v) => updateField("hearing_loss", v)} />
-            <Field label="Resultado do teste" value={form.test_result || ""} onChange={(v) => updateField("test_result", v)} />
-            <label className="checkbox">
-              <input type="checkbox" checked={Boolean(form.patient_approved)} onChange={(event) => updateField("patient_approved", event.target.checked)} />
-              Paciente aprovou o teste
-            </label>
 
-            <div className="form-section-title">
-              <span>3. Pedido do aparelho</span>
-              <p>Quando o paciente aprovar, complete aparelho, acessórios, pagamento e envio à fábrica.</p>
+            <div className={formStepClass("teste")}>
+              <div className="form-section-title">
+                <span>2. Resultado do teste</span>
+                <p>Após o atendimento, registre documentos, resultado e aprovação do paciente.</p>
+              </div>
+              <Field label="Data do pedido médico" type="date" value={form.medical_request_date || ""} onChange={(v) => updateField("medical_request_date", v)} />
+              <Field label="Data da audiometria" type="date" value={form.audiometry_date || ""} onChange={(v) => updateField("audiometry_date", v)} />
+              <Field label="Perda auditiva" value={form.hearing_loss || ""} onChange={(v) => updateField("hearing_loss", v)} />
+              <Field label="Resultado do teste" value={form.test_result || ""} onChange={(v) => updateField("test_result", v)} />
+              <label className="checkbox">
+                <input type="checkbox" checked={Boolean(form.patient_approved)} onChange={(event) => updateField("patient_approved", event.target.checked)} />
+                Paciente aprovou o teste
+              </label>
             </div>
+
+            <div className={formStepClass("pedido")}>
+              <div className="form-section-title">
+                <span>3. Pedido do aparelho</span>
+                <p>Quando o paciente aprovar, complete aparelho, acessórios, pagamento e envio à fábrica.</p>
+              </div>
             <Field label="Data do pedido à fábrica" type="date" value={form.order_date || ""} onChange={(v) => updateField("order_date", v)} />
             <Field label="Nº pedido fábrica" value={form.factory_order_number || ""} onChange={(v) => updateField("factory_order_number", v)} />
             <label>
@@ -840,68 +874,75 @@ export default function DashboardClient({ initialAuthenticated }) {
             <Field label="Acessórios / códigos" value={form.accessory_codes || ""} onChange={(v) => updateField("accessory_codes", v)} disabled />
             <Field label="Valor fábrica" value={form.factory_value_cents_display ?? centsToCurrency(form.factory_value_cents)} onChange={(v) => updateField("factory_value_cents_display", v)} disabled />
             <Field label="Valor paciente" value={form.patient_value_cents_display ?? centsToCurrency(form.patient_value_cents)} onChange={(v) => updateField("patient_value_cents_display", v)} />
-            <div className="form-section-title">
-              <span>4. Chegada, entrega e adaptação</span>
-              <p>Após a chegada do aparelho, marque o retorno para entrega e adaptação.</p>
             </div>
-            <Field label="Chegada do aparelho" type="date" value={form.arrival_date || ""} onChange={(v) => updateField("arrival_date", v)} />
-            <Field label="Retorno/adaptação" type="datetime-local" value={form.adaptation_date || ""} onChange={(v) => updateField("adaptation_date", v)} />
-            <label className="wide">
-              Observações
-              <textarea value={form.notes || ""} onChange={(event) => updateField("notes", event.target.value)} />
-            </label>
-            <label className="wide">
-              Conferência de documentos
-              <textarea value={form.documentation_notes || ""} onChange={(event) => updateField("documentation_notes", event.target.value)} />
-            </label>
-            <div className="form-section-title">
-              <span>5. Documentos do paciente</span>
-              <p>Pedido médico, exame de audiometria e comprovantes ficam registrados no histórico.</p>
+
+            <div className={formStepClass("entrega")}>
+              <div className="form-section-title">
+                <span>4. Chegada, entrega e adaptação</span>
+                <p>Após a chegada do aparelho, marque o retorno para entrega e adaptação.</p>
+              </div>
+              <Field label="Chegada do aparelho" type="date" value={form.arrival_date || ""} onChange={(v) => updateField("arrival_date", v)} />
+              <Field label="Retorno/adaptação" type="datetime-local" value={form.adaptation_date || ""} onChange={(v) => updateField("adaptation_date", v)} />
+              <label className="wide">
+                Observações
+                <textarea value={form.notes || ""} onChange={(event) => updateField("notes", event.target.value)} />
+              </label>
+              <label className="wide">
+                Conferência de documentos
+                <textarea value={form.documentation_notes || ""} onChange={(event) => updateField("documentation_notes", event.target.value)} />
+              </label>
             </div>
-            <div className="wide document-panel">
-              {editingId ? (
-                <>
-                  <div className="document-upload">
-                    <label>
-                      Tipo de documento
-                      <select value={uploadType} onChange={(event) => setUploadType(event.target.value)}>
-                        {documentTypeOptions.map((option) => (
-                          <option key={option.key} value={option.key}>{option.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Arquivo
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="application/pdf,image/jpeg,image/png,image/webp"
-                        onChange={(event) => setUploadFile(event.target.files?.[0] || null)}
-                      />
-                      <small>PDF, JPG, PNG ou WEBP até 4 MB.</small>
-                    </label>
-                    <button type="button" onClick={uploadPatientFile}>Anexar documento</button>
-                  </div>
-                  <div className="document-list">
-                    {filesLoading ? <p className="empty-accessory">Carregando documentos...</p> : null}
-                    {!filesLoading && !patientFiles.length ? <p className="empty-accessory">Nenhum documento anexado.</p> : null}
-                    {patientFiles.map((file) => (
-                      <div className="document-item" key={file.id}>
-                        <div>
-                          <strong>{documentTypeLabel(file.document_type)}</strong>
-                          <span>{file.file_name} · {fileSizeLabel(file.file_size)} · {new Date(file.created_at).toLocaleString("pt-BR")}</span>
+
+            <div className={formStepClass("documentos")}>
+              <div className="form-section-title">
+                <span>5. Documentos do paciente</span>
+                <p>Pedido médico, exame de audiometria e comprovantes ficam registrados no histórico.</p>
+              </div>
+              <div className="wide document-panel">
+                {editingId ? (
+                  <>
+                    <div className="document-upload">
+                      <label>
+                        Tipo de documento
+                        <select value={uploadType} onChange={(event) => setUploadType(event.target.value)}>
+                          {documentTypeOptions.map((option) => (
+                            <option key={option.key} value={option.key}>{option.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Arquivo
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="application/pdf,image/jpeg,image/png,image/webp"
+                          onChange={(event) => setUploadFile(event.target.files?.[0] || null)}
+                        />
+                        <small>PDF, JPG, PNG ou WEBP até 4 MB.</small>
+                      </label>
+                      <button type="button" onClick={uploadPatientFile}>Anexar documento</button>
+                    </div>
+                    <div className="document-list">
+                      {filesLoading ? <p className="empty-accessory">Carregando documentos...</p> : null}
+                      {!filesLoading && !patientFiles.length ? <p className="empty-accessory">Nenhum documento anexado.</p> : null}
+                      {patientFiles.map((file) => (
+                        <div className="document-item" key={file.id}>
+                          <div>
+                            <strong>{documentTypeLabel(file.document_type)}</strong>
+                            <span>{file.file_name} · {fileSizeLabel(file.file_size)} · {new Date(file.created_at).toLocaleString("pt-BR")}</span>
+                          </div>
+                          <div className="row-actions">
+                            <a className="button-link" href={`/api/patients/${editingId}/files/${file.id}`} target="_blank" rel="noreferrer">Abrir</a>
+                            <button type="button" className="secondary" onClick={() => deletePatientFile(file.id)}>Excluir</button>
+                          </div>
                         </div>
-                        <div className="row-actions">
-                          <a className="button-link" href={`/api/patients/${editingId}/files/${file.id}`} target="_blank" rel="noreferrer">Abrir</a>
-                          <button type="button" className="secondary" onClick={() => deletePatientFile(file.id)}>Excluir</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <p className="empty-accessory">Salve o cadastro do paciente antes de anexar documentos.</p>
-              )}
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="empty-accessory">Salve o cadastro do paciente antes de anexar documentos.</p>
+                )}
+              </div>
             </div>
             <div className="form-actions">
               <button type="button" className="secondary" onClick={(event) => savePatient(event, "order")}>

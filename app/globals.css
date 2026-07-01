@@ -20,6 +20,7 @@
 
 html {
   scroll-behavior: smooth;
+  font-size: 16px;
 }
 
 body {
@@ -27,6 +28,7 @@ body {
   color: var(--ink);
   background: var(--paper);
   font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.5;
 }
 
 button,
@@ -299,6 +301,7 @@ button:hover {
 }
 
 .workspace {
+  width: min(100%, 1440px);
   padding: 1.5rem;
   display: grid;
   gap: 1.25rem;
@@ -503,19 +506,56 @@ td small {
 }
 
 .panel {
-  padding: 1.25rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
 }
 
 .patient-form {
   margin-top: 1rem;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 1rem;
+}
+
+.form-step-tabs {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: .5rem;
+  padding: .35rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  overflow-x: auto;
+}
+
+.form-step-tab {
+  min-height: 44px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--teal-800);
+}
+
+.form-step-tab:hover,
+.form-step-tab.active {
+  border-color: var(--teal-600);
+  background: var(--teal-600);
+  color: var(--white);
+}
+
+.form-step-panel {
+  grid-column: 1 / -1;
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.form-step-panel.active {
+  display: grid;
 }
 
 .form-section-title {
   grid-column: 1 / -1;
-  padding: .9rem 1rem;
+  padding: 1rem;
   border-left: 4px solid var(--teal-600);
   border-radius: 8px;
   background: var(--mint-100);
@@ -538,6 +578,7 @@ td small {
   gap: .4rem;
   color: var(--teal-950);
   font-weight: 800;
+  font-size: .98rem;
 }
 
 .checkbox {
@@ -803,7 +844,7 @@ td strong {
   .pipeline,
   .workflow-board,
   .document-upload,
-  .patient-form {
+  .form-step-panel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -829,9 +870,14 @@ td strong {
   .pipeline,
   .workflow-board,
   .document-upload,
-  .patient-form,
+  .form-step-panel,
   .calendar-summary {
     grid-template-columns: 1fr;
+  }
+
+  .form-step-tabs {
+    grid-template-columns: repeat(5, minmax(110px, 1fr));
+    margin-inline: -0.25rem;
   }
 
   .document-item {
