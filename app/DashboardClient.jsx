@@ -49,6 +49,36 @@ const moneyLabel = (value) => `R$ ${centsToCurrency(value)}`;
 const monthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 const onlyDigits = (value) => String(value || "").replace(/\D/g, "");
 const isValidPhone = (value) => /^\d{11}$/.test(onlyDigits(value));
+const formatCpf = (value) => {
+  const digits = onlyDigits(value).slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+};
+const isValidCpf = (value) => {
+  const digits = onlyDigits(value);
+  if (!digits) return true;
+  if (!/^\d{11}$/.test(digits)) return false;
+  if (/^(\d)\1{10}$/.test(digits)) return false;
+
+  const calculateDigit = (base) => {
+    let sum = 0;
+    for (let index = 0; index < base.length; index += 1) {
+      sum += Number(base[index]) * (base.length + 1 - index);
+    }
+    const remainder = (sum * 10) % 11;
+    return remainder === 10 ? 0 : remainder;
+  };
+
+  return calculateDigit(digits.slice(0, 9)) === Number(digits[9])
+    && calculateDigit(digits.slice(0, 10)) === Number(digits[10]);
+};
+const isValidEmail = (value) => {
+  const email = String(value || "").trim();
+  if (!email) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+};
 const formatPhone = (value) => {
   const digits = onlyDigits(value).slice(0, 11);
   if (digits.length <= 2) return digits;
@@ -401,6 +431,7 @@ export default function DashboardClient({ initialAuthenticated }) {
     setForm({
       ...emptyForm,
       ...row,
+      cpf: formatCpf(row.cpf),
       phone: formatPhone(row.phone),
       birth_date: row.birth_date || "",
       medical_request_date: row.medical_request_date || "",
@@ -433,6 +464,12 @@ export default function DashboardClient({ initialAuthenticated }) {
     document.getElementById("novo-pedido")?.scrollIntoView({ behavior: "smooth" });
   }
 
+  function startDocuments(row) {
+    edit(row, "schedule");
+    setActiveFormStep("documentos");
+    document.getElementById("novo-pedido")?.scrollIntoView({ behavior: "smooth" });
+  }
+
   async function savePatient(event, intent = formMode) {
     event.preventDefault();
     setMessage("");
@@ -444,12 +481,24 @@ export default function DashboardClient({ initialAuthenticated }) {
       setMessage("Informe um telefone valido com 11 digitos: 2 de DDD + 9 do telefone.");
       return;
     }
+    if (!isValidCpf(form.cpf)) {
+      setMessage("Informe um CPF valido.");
+      setActiveFormStep("cadastro");
+      return;
+    }
+    if (!isValidEmail(form.email)) {
+      setMessage("Informe um e-mail valido.");
+      setActiveFormStep("cadastro");
+      return;
+    }
     if (intent === "schedule" && !editingId && !form.test_date) {
       setMessage("Informe a data e horário do teste para aparecer na agenda.");
       return;
     }
     const payload = {
       ...form,
+      cpf: onlyDigits(form.cpf),
+      email: String(form.email || "").trim().toLowerCase(),
       phone: onlyDigits(form.phone),
       selected_payment_term_id: form.selected_payment_term_id || null,
       selected_device_product_id: form.selected_device_product_id || null,
@@ -727,6 +776,7 @@ export default function DashboardClient({ initialAuthenticated }) {
               <button type="button" className={formMode === "order" ? "secondary mode-active" : "secondary"} onClick={() => { setFormMode("order"); setActiveFormStep("pedido"); }}>
                 Fazer pedido
               </button>
+              {editingId ? <button type="button" className={activeFormStep === "documentos" ? "secondary mode-active" : "secondary"} onClick={() => setActiveFormStep("documentos")}>Anexar documentos</button> : null}
               {editingId ? <button type="button" className="secondary" onClick={(event) => savePatient(event, "edit")}>Salvar edição</button> : null}
             </div>
           </div>
@@ -737,10 +787,15 @@ export default function DashboardClient({ initialAuthenticated }) {
                 <button
                   type="button"
                   key={step.key}
-                  className={activeFormStep === step.key ? "form-step-tab active" : "form-step-tab"}
+                  className={[
+                    "form-step-tab",
+                    activeFormStep === step.key ? "active" : "",
+                    editingId && step.key === "documentos" ? "has-documents-entry" : ""
+                  ].filter(Boolean).join(" ")}
                   onClick={() => setActiveFormStep(step.key)}
                 >
                   {step.label}
+                  {editingId && step.key === "documentos" ? <small>{patientFiles.length}</small> : null}
                 </button>
               ))}
             </div>
@@ -751,7 +806,7 @@ export default function DashboardClient({ initialAuthenticated }) {
                 <p>Primeiro contato: dados pessoais e horário com o fonoaudiólogo.</p>
               </div>
               <Field label="Nome do paciente" required value={form.patient_name} onChange={(v) => updateField("patient_name", v)} />
-              <Field label="CPF" value={form.cpf || ""} onChange={(v) => updateField("cpf", v)} />
+              <Field label="CPF" value={formatCpf(form.cpf)} onChange={(v) => updateField("cpf", formatCpf(v))} inputMode="numeric" maxLength={14} placeholder="000.000.000-00" />
               <Field label="Nascimento" type="date" value={form.birth_date || ""} onChange={(v) => updateField("birth_date", v)} />
               <Field
                 label="Telefone"
@@ -761,7 +816,7 @@ export default function DashboardClient({ initialAuthenticated }) {
                 maxLength={15}
                 placeholder="(65) 99999-9999"
               />
-              <Field label="E-mail" value={form.email || ""} onChange={(v) => updateField("email", v)} />
+              <Field label="E-mail" type="email" value={form.email || ""} onChange={(v) => updateField("email", v)} placeholder="nome@email.com" />
               <Field label="Cidade" value={form.city || ""} onChange={(v) => updateField("city", v)} />
               <Field label="UF" value={form.state || ""} onChange={(v) => updateField("state", v)} />
 
@@ -995,6 +1050,7 @@ export default function DashboardClient({ initialAuthenticated }) {
                       <div className="row-actions">
                         <button className="secondary" onClick={() => edit(row, "schedule")}>Editar cadastro</button>
                         <button className="secondary" onClick={() => startOrder(row)}>Fazer pedido</button>
+                        <button className="secondary" onClick={() => startDocuments(row)}>Documentos</button>
                       </div>
                     </td>
                   </tr>

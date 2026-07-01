@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSql } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { isValidBrazilMobilePhone, normalizePatient } from "@/lib/patient-fields";
+import { isValidBrazilMobilePhone, isValidCpf, isValidEmail, normalizePatient } from "@/lib/patient-fields";
 
 function normalizeAutomaticStatus(data) {
   if (data.status !== "teste_agendado" || !data.test_date) return data.status;
@@ -39,6 +39,14 @@ export async function PATCH(request, context) {
   const data = normalizePatient(await request.json());
   if (!isValidBrazilMobilePhone(data.phone)) {
     return NextResponse.json({ error: "Telefone invalido. Informe 11 digitos: 2 de DDD + 9 do telefone." }, { status: 400 });
+  }
+
+  if (!isValidCpf(data.cpf)) {
+    return NextResponse.json({ error: "CPF invalido. Verifique os 11 digitos informados." }, { status: 400 });
+  }
+
+  if (!isValidEmail(data.email)) {
+    return NextResponse.json({ error: "E-mail invalido. Informe um e-mail no formato correto." }, { status: 400 });
   }
 
   const [row] = await sql`

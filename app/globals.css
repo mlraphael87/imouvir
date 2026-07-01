@@ -530,9 +530,27 @@ td small {
 
 .form-step-tab {
   min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
   border-color: transparent;
   background: transparent;
   color: var(--teal-800);
+}
+
+.form-step-tab small {
+  min-width: 1.4rem;
+  padding: .1rem .35rem;
+  border-radius: 999px;
+  background: var(--mint-100);
+  color: var(--teal-800);
+  font-size: .75rem;
+  line-height: 1.2;
+}
+
+.form-step-tab.has-documents-entry {
+  border-color: var(--line);
 }
 
 .form-step-tab:hover,
@@ -540,6 +558,12 @@ td small {
   border-color: var(--teal-600);
   background: var(--teal-600);
   color: var(--white);
+}
+
+.form-step-tab:hover small,
+.form-step-tab.active small {
+  background: var(--white);
+  color: var(--teal-800);
 }
 
 .form-step-panel {
