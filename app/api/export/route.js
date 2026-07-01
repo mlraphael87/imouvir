@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
+import JSZip from "jszip";
 import * as XLSX from "xlsx";
 import { getSql } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
@@ -9,6 +10,7 @@ import { statusLabel } from "@/lib/status";
 const currency = (cents) => Number(cents || 0) / 100;
 const TEMPLATE_PATH = path.join(process.cwd(), "public", "templates", "modelo-pedido-uberlandia.xlsx");
 const ORDER_SHEET = "Planilha de Pedidos SONIC";
+const ORDER_SHEET_PATH = "xl/worksheets/sheet1.xml";
 const ORDER_ROWS = Array.from({ length: 16 }, (_item, index) => 13 + index);
 const BONUS_ROWS = Array.from({ length: 7 }, (_item, index) => 32 + index);
 
@@ -28,30 +30,68 @@ function dateLabel(value = new Date()) {
   return `${String(date.getUTCDate()).padStart(2, "0")}.${String(date.getUTCMonth() + 1).padStart(2, "0")}.${year}`;
 }
 
-function setCell(worksheet, address, value) {
+function escapeXml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function updateCellXml(sheetXml, address, value) {
   const isNumber = typeof value === "number" && Number.isFinite(value);
-  worksheet[address] = {
-    t: isNumber ? "n" : "s",
-    v: isNumber ? value : String(value ?? "")
-  };
+  const cellPattern = new RegExp(`<c\\b(?=[^>]*\\br="${address}")[^>]*>[\\s\\S]*?<\\/c>`);
+  const match = sheetXml.match(cellPattern);
+  if (!match) return sheetXml;
+
+  const openingTag = match[0].match(/^<c\b([^>]*)>/)?.[1] || "";
+  const attrs = openingTag.replace(/\s+t="[^"]*"/g, "");
+  const body = isNumber ? `<v>${value}</v>` : `<is><t>${escapeXml(value)}</t></is>`;
+  const typeAttr = isNumber ? "" : ` t="inlineStr"`;
+
+  return sheetXml.replace(cellPattern, `<c${attrs}${typeAttr}>${body}</c>`);
 }
 
-function clearItemRows(worksheet, rows) {
+function stripFormulasToCachedValues(sheetXml) {
+  return sheetXml.replace(/<c\b[^>]*>[\s\S]*?<\/c>/g, (cellXml) => {
+    if (!cellXml.includes("<f")) return cellXml;
+
+    const openingTag = cellXml.match(/^<c\b([^>]*)>/)?.[1] || "";
+    const value = cellXml.match(/<v>([\s\S]*?)<\/v>/)?.[1];
+    return `<c${openingTag}>${value == null ? "" : `<v>${value}</v>`}</c>`;
+  });
+}
+
+function setTemplateCell(cells, address, value) {
+  cells.push([address, value]);
+}
+
+function clearTemplateRows(cells, rows) {
   for (const row of rows) {
-    setCell(worksheet, `B${row}`, 0);
-    setCell(worksheet, `C${row}`, "");
-    setCell(worksheet, `D${row}`, "");
-    setCell(worksheet, `E${row}`, 0);
-    setCell(worksheet, `F${row}`, 0);
+    setTemplateCell(cells, `B${row}`, 0);
+    setTemplateCell(cells, `C${row}`, "");
+    setTemplateCell(cells, `D${row}`, "");
+    setTemplateCell(cells, `E${row}`, 0);
+    setTemplateCell(cells, `F${row}`, 0);
   }
 }
 
-function keepOnlySheet(workbook, sheetName) {
-  workbook.SheetNames = [sheetName];
-  workbook.Sheets = { [sheetName]: workbook.Sheets[sheetName] };
-  if (workbook.Workbook?.Sheets) {
-    workbook.Workbook.Sheets = workbook.Workbook.Sheets.filter((sheet) => sheet.name === sheetName);
-  }
+function keepOnlyOrderSheetXml(zip, workbookXml, relsXml) {
+  const firstSheet = `<sheet name="${ORDER_SHEET}" sheetId="27" r:id="rId1"/>`;
+  const nextWorkbookXml = workbookXml
+    .replace(/<sheets>[\s\S]*?<\/sheets>/, `<sheets>${firstSheet}</sheets>`)
+    .replace(/<externalReferences>[\s\S]*?<\/externalReferences>/, "");
+
+  const nextRelsXml = relsXml.replace(/<Relationship\b[^>]*\/>/g, (relationship) => {
+    const isOtherWorksheet = relationship.includes("/worksheet") && !relationship.includes('Target="worksheets/sheet1.xml"');
+    const isExternalLink = relationship.includes("/externalLink");
+    const isCalcChain = relationship.includes("/calcChain");
+    return isOtherWorksheet || isExternalLink || isCalcChain ? "" : relationship;
+  });
+
+  zip.file("xl/workbook.xml", nextWorkbookXml);
+  zip.file("xl/_rels/workbook.xml.rels", nextRelsXml);
+  zip.remove("xl/calcChain.xml");
 }
 
 function cityLabel(row) {
@@ -90,15 +130,15 @@ async function productMap(sql, ids) {
   return new Map(rows.map((row) => [Number(row.id), row]));
 }
 
-async function buildOrderWorkbook(sql, row) {
+async function buildOrderBuffer(sql, row) {
   const productIds = [
     row.selected_device_product_id,
     ...(row.accessory_items || []).map((item) => item.product_id)
   ];
   const products = await productMap(sql, productIds);
-  const workbook = XLSX.read(fs.readFileSync(TEMPLATE_PATH), { type: "buffer", cellStyles: true });
-  const worksheet = workbook.Sheets[ORDER_SHEET];
-  if (!worksheet) throw new Error(`Aba ${ORDER_SHEET} não encontrada no modelo.`);
+  const zip = await JSZip.loadAsync(fs.readFileSync(TEMPLATE_PATH));
+  const sheetFile = zip.file(ORDER_SHEET_PATH);
+  if (!sheetFile) throw new Error(`Aba ${ORDER_SHEET} não encontrada no modelo.`);
 
   const items = [];
   const selectedDevice = products.get(Number(row.selected_device_product_id));
@@ -112,34 +152,45 @@ async function buildOrderWorkbook(sql, row) {
     if (product) items.push(itemFromProduct(product, accessory.quantity));
   }
 
-  clearItemRows(worksheet, ORDER_ROWS);
-  clearItemRows(worksheet, BONUS_ROWS);
+  const cells = [];
+  clearTemplateRows(cells, ORDER_ROWS);
+  clearTemplateRows(cells, BONUS_ROWS);
 
-  setCell(worksheet, "E3", row.factory_order_number || `CRM ${row.id}`);
-  setCell(worksheet, "B7", patientOrderName(row));
-  setCell(worksheet, "E7", cityLabel(row));
-  setCell(worksheet, "B8", row.payment_terms || "");
-  setCell(worksheet, "E8", row.payment_description || row.payment_terms || "");
-  setCell(worksheet, "B9", row.payment_code || "");
+  setTemplateCell(cells, "E3", row.factory_order_number || `CRM ${row.id}`);
+  setTemplateCell(cells, "B7", patientOrderName(row));
+  setTemplateCell(cells, "E7", cityLabel(row));
+  setTemplateCell(cells, "B8", row.payment_terms || "");
+  setTemplateCell(cells, "E8", row.payment_description || row.payment_terms || "");
+  setTemplateCell(cells, "B9", row.payment_code || "");
 
   let total = 0;
   items.slice(0, ORDER_ROWS.length).forEach((item, index) => {
     const excelRow = ORDER_ROWS[index];
-    setCell(worksheet, `B${excelRow}`, item.code);
-    setCell(worksheet, `C${excelRow}`, item.description);
-    setCell(worksheet, `D${excelRow}`, item.quantity);
-    setCell(worksheet, `E${excelRow}`, item.unitValue);
-    setCell(worksheet, `F${excelRow}`, item.total);
+    setTemplateCell(cells, `B${excelRow}`, item.code);
+    setTemplateCell(cells, `C${excelRow}`, item.description);
+    setTemplateCell(cells, `D${excelRow}`, item.quantity);
+    setTemplateCell(cells, `E${excelRow}`, item.unitValue);
+    setTemplateCell(cells, `F${excelRow}`, item.total);
     total += item.total;
   });
 
-  setCell(worksheet, "F29", total);
-  setCell(worksheet, "F40", 0);
-  keepOnlySheet(workbook, ORDER_SHEET);
+  setTemplateCell(cells, "F29", total);
+  setTemplateCell(cells, "F40", 0);
 
-  return workbook;
+  let sheetXml = stripFormulasToCachedValues(await sheetFile.async("string"));
+  for (const [address, value] of cells) {
+    sheetXml = updateCellXml(sheetXml, address, value);
+  }
+
+  zip.file(ORDER_SHEET_PATH, sheetXml);
+  keepOnlyOrderSheetXml(
+    zip,
+    await zip.file("xl/workbook.xml").async("string"),
+    await zip.file("xl/_rels/workbook.xml.rels").async("string")
+  );
+
+  return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
-
 export async function GET(request) {
   if (!(await requireAuth())) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
 
@@ -159,8 +210,7 @@ export async function GET(request) {
   if (ids.length === 1) {
     const row = rows[0];
     if (!row) return NextResponse.json({ error: "Paciente não encontrado." }, { status: 404 });
-    const workbook = await buildOrderWorkbook(sql, row);
-    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+    const buffer = await buildOrderBuffer(sql, row);
     const filename = sanitizeFilename(patientOrderName(row));
 
     return new NextResponse(buffer, {
