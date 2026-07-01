@@ -30,8 +30,14 @@ export async function GET(request) {
   `;
 
   const rows = await sql`
-    select *
+    select patients.*,
+      coalesce(file_counts.total, 0)::int as document_count
     from patients
+    left join (
+      select patient_id, count(*)::int as total
+      from patient_files
+      group by patient_id
+    ) file_counts on file_counts.patient_id = patients.id
     where (${q || null}::text is null
       or lower(patient_name) like lower(${"%" + q + "%"})
       or coalesce(phone, '') like ${"%" + q + "%"}

@@ -533,6 +533,7 @@ export default function DashboardClient({ initialAuthenticated }) {
     setUploadFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     await loadPatientFiles(editingId);
+    await loadPatients();
   }
 
   async function deletePatientFile(fileId) {
@@ -547,6 +548,7 @@ export default function DashboardClient({ initialAuthenticated }) {
 
     setMessage("Documento excluído.");
     await loadPatientFiles(editingId);
+    await loadPatients();
   }
 
   if (!authenticated) {
@@ -700,7 +702,7 @@ export default function DashboardClient({ initialAuthenticated }) {
           <div className="panel-heading">
             <div>
               <p className="eyebrow">{formMode === "schedule" ? "Cadastro e agenda" : "Pedido do aparelho"}</p>
-              <h2>{editingId ? `Paciente #${editingId}` : formMode === "schedule" ? "Novo cadastro e agendamento" : "Novo pedido de aparelho"}</h2>
+              <h2>{editingId ? `Paciente #${editingId} · ${patientFiles.length} documento${patientFiles.length === 1 ? "" : "s"}` : formMode === "schedule" ? "Novo cadastro e agendamento" : "Novo pedido de aparelho"}</h2>
             </div>
             <div className="mode-actions">
               <button type="button" className={formMode === "schedule" ? "mode-active" : ""} onClick={(event) => savePatient(event, "schedule")}>
@@ -931,6 +933,7 @@ export default function DashboardClient({ initialAuthenticated }) {
                   <th>Teste</th>
                   <th>Modelo</th>
                   <th>Pedido</th>
+                  <th>Docs</th>
                   <th></th>
                 </tr>
               </thead>
@@ -946,6 +949,7 @@ export default function DashboardClient({ initialAuthenticated }) {
                     <td>{row.test_date ? new Date(row.test_date).toLocaleString("pt-BR") : "-"}</td>
                     <td>{row.device_model || "-"}</td>
                     <td>{row.factory_order_number || "-"}</td>
+                    <td><span className="pill">{row.document_count || 0}</span></td>
                     <td>
                       <div className="row-actions">
                         <button className="secondary" onClick={() => edit(row, "schedule")}>Editar cadastro</button>

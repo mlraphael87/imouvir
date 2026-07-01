@@ -84,8 +84,19 @@ create table if not exists patient_files (
   file_name text not null,
   mime_type text not null,
   file_size integer not null,
+  analysis_status text not null default 'pending',
+  payment_amount_cents integer,
+  payment_date date,
+  bank_reference text,
+  reconciled_at timestamptz,
   file_data bytea not null
 );
+
+alter table patient_files add column if not exists analysis_status text not null default 'pending';
+alter table patient_files add column if not exists payment_amount_cents integer;
+alter table patient_files add column if not exists payment_date date;
+alter table patient_files add column if not exists bank_reference text;
+alter table patient_files add column if not exists reconciled_at timestamptz;
 
 alter table patients add column if not exists selected_payment_term_id bigint;
 alter table patients add column if not exists payment_terms text;
@@ -128,6 +139,8 @@ create index if not exists catalog_products_category_idx on catalog_products(cat
 create index if not exists catalog_products_description_idx on catalog_products(lower(description));
 create index if not exists payment_terms_active_idx on payment_terms(active);
 create index if not exists patient_files_patient_idx on patient_files(patient_id, created_at desc);
+create index if not exists patient_files_document_type_idx on patient_files(document_type);
+create index if not exists patient_files_analysis_status_idx on patient_files(analysis_status);
 
 create or replace function set_patients_updated_at()
 returns trigger as $$

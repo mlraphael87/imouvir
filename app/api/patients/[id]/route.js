@@ -16,9 +16,15 @@ export async function GET(_request, context) {
   const { id } = await context.params;
   const sql = getSql();
   const [row] = await sql`
-    select *
+    select patients.*,
+      coalesce(file_counts.total, 0)::int as document_count
     from patients
-    where id = ${id}
+    left join (
+      select patient_id, count(*)::int as total
+      from patient_files
+      group by patient_id
+    ) file_counts on file_counts.patient_id = patients.id
+    where patients.id = ${id}
   `;
 
   if (!row) return NextResponse.json({ error: "Registro não encontrado." }, { status: 404 });
