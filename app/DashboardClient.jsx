@@ -495,6 +495,13 @@ export default function DashboardClient({ initialAuthenticated }) {
     document.getElementById("novo-pedido")?.scrollIntoView({ behavior: "smooth" });
   }
 
+  function openOnEnter(event, callback) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      callback();
+    }
+  }
+
   async function savePatient(event, intent = formMode) {
     event.preventDefault();
     setMessage("");
@@ -765,17 +772,21 @@ export default function DashboardClient({ initialAuthenticated }) {
                         <div
                           className={`calendar-event ${appointment.event_type === "adaptation_date" ? "adaptation-event" : "test-event"}`}
                           key={`${appointment.event_type}-${appointment.id}-${appointment.starts_at}`}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => editAppointment(appointment)}
+                          onKeyDown={(event) => openOnEnter(event, () => editAppointment(appointment))}
                         >
                           <span>{time} · {eventTypeLabel(appointment.event_type)}</span>
                           <strong>{appointment.patient_name}</strong>
                           {whatsapp ? (
-                            <a className="whatsapp-link" href={whatsapp} target="_blank" rel="noreferrer">
+                            <a className="whatsapp-link" href={whatsapp} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
                               {formatPhone(appointment.phone)}
                             </a>
                           ) : (
                             <small>Sem telefone</small>
                           )}
-                          <button type="button" className="calendar-edit" onClick={() => editAppointment(appointment)}>Editar</button>
+                          <button type="button" className="calendar-edit" onClick={(event) => { event.stopPropagation(); editAppointment(appointment); }}>Editar</button>
                         </div>
                       );
                     })}
@@ -1062,7 +1073,13 @@ export default function DashboardClient({ initialAuthenticated }) {
               </thead>
               <tbody>
                 {displayedRows.map((row) => (
-                  <tr key={row.id}>
+                  <tr
+                    key={row.id}
+                    className="clickable-row"
+                    tabIndex={0}
+                    onClick={() => edit(row, "schedule")}
+                    onKeyDown={(event) => openOnEnter(event, () => edit(row, "schedule"))}
+                  >
                     <td>
                       <strong>{row.patient_name}</strong>
                       <small>{row.phone ? formatPhone(row.phone) : "Sem telefone"}</small>
@@ -1075,9 +1092,9 @@ export default function DashboardClient({ initialAuthenticated }) {
                     <td><span className="pill">{row.document_count || 0}</span></td>
                     <td>
                       <div className="row-actions">
-                        <button className="secondary" onClick={() => edit(row, "schedule")}>Editar cadastro</button>
-                        <button className="secondary" onClick={() => startOrder(row)}>Fazer pedido</button>
-                        <button className="secondary" onClick={() => startDocuments(row)}>Documentos</button>
+                        <button className="secondary" onClick={(event) => { event.stopPropagation(); edit(row, "schedule"); }}>Editar cadastro</button>
+                        <button className="secondary" onClick={(event) => { event.stopPropagation(); startOrder(row); }}>Fazer pedido</button>
+                        <button className="secondary" onClick={(event) => { event.stopPropagation(); startDocuments(row); }}>Documentos</button>
                       </div>
                     </td>
                   </tr>

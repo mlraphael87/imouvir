@@ -744,9 +744,13 @@ td small {
   background: var(--mint-100);
   color: var(--ink);
   text-align: left;
+  cursor: pointer;
 }
 
-.calendar-event:hover {
+.calendar-event:hover,
+.calendar-event:focus-visible {
+  outline: 2px solid rgba(10, 127, 131, .18);
+  outline-offset: 1px;
   background: #dff6f1;
 }
 
@@ -828,6 +832,16 @@ th {
 td strong {
   display: block;
   color: var(--teal-950);
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover,
+.clickable-row:focus-visible {
+  outline: none;
+  background: var(--mint-100);
 }
 
 .pill {
