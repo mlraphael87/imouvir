@@ -350,8 +350,11 @@ export default function DashboardClient({ initialAuthenticated }) {
 
   function hydrateCatalogFields(nextForm) {
     const selectedDevice = findProduct(nextForm.selected_device_product_id);
+    const rawAccessoryItems = nextForm.accessory_items?.length
+      ? nextForm.accessory_items
+      : accessoryItemsFromLegacyIds(nextForm.selected_accessory_product_ids);
     const accessoryItems = normalizeAccessoryItems(
-      nextForm.accessory_items?.length ? nextForm.accessory_items : accessoryItemsFromLegacyIds(nextForm.selected_accessory_product_ids)
+      rawAccessoryItems
     );
     const selectedAccessoryProductIds = [...new Set(accessoryItems.map((item) => Number(item.product_id)).filter(Boolean))];
     const side = nextForm.device_side || "bilateral";
@@ -359,7 +362,7 @@ export default function DashboardClient({ initialAuthenticated }) {
 
     return {
       ...nextForm,
-      accessory_items: accessoryItems,
+      accessory_items: rawAccessoryItems,
       selected_accessory_product_ids: selectedAccessoryProductIds,
       device_brand: selectedDevice ? "Sonic" : nextForm.device_brand,
       device_model: selectedDevice?.description || nextForm.device_model,
@@ -408,7 +411,20 @@ export default function DashboardClient({ initialAuthenticated }) {
       const accessoryItems = [...(current.accessory_items || [])];
       accessoryItems[index] = {
         ...accessoryItems[index],
-        [key]: key === "quantity" ? Math.max(1, Number(value || 1)) : value
+        [key]: key === "quantity" ? value.replace(/\D/g, "") : value
+      };
+      return hydrateCatalogFields({ ...current, accessory_items: accessoryItems });
+    });
+  }
+
+  function normalizeAccessoryQuantity(index) {
+    setForm((current) => {
+      const accessoryItems = [...(current.accessory_items || [])];
+      const currentItem = accessoryItems[index];
+      if (!currentItem) return current;
+      accessoryItems[index] = {
+        ...currentItem,
+        quantity: Math.max(1, Number(currentItem.quantity || 1))
       };
       return hydrateCatalogFields({ ...current, accessory_items: accessoryItems });
     });
@@ -916,8 +932,11 @@ export default function DashboardClient({ initialAuthenticated }) {
                           <input
                             type="number"
                             min="1"
-                            value={item.quantity || 1}
+                            step="1"
+                            inputMode="numeric"
+                            value={item.quantity ?? 1}
                             onChange={(event) => updateAccessoryItem(index, "quantity", event.target.value)}
+                            onBlur={() => normalizeAccessoryQuantity(index)}
                           />
                         </label>
                         <span className="accessory-subtotal">{moneyLabel(subtotal)}</span>
