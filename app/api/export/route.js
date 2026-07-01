@@ -8,7 +8,7 @@ import { requireAuth } from "@/lib/auth";
 import { statusLabel } from "@/lib/status";
 
 const currency = (cents) => Number(cents || 0) / 100;
-const TEMPLATE_PATH = path.join(process.cwd(), "public", "templates", "modelo-pedido-uberlandia.xlsx");
+const TEMPLATE_PATH = path.join(process.cwd(), "public", "templates", "modelo-pedido-sonic.xlsx");
 const ORDER_SHEET = "Planilha de Pedidos SONIC";
 const ORDER_SHEET_PATH = "xl/worksheets/sheet1.xml";
 const ORDER_ROWS = Array.from({ length: 16 }, (_item, index) => 13 + index);
@@ -52,16 +52,6 @@ function updateCellXml(sheetXml, address, value) {
   return sheetXml.replace(cellPattern, `<c${attrs}${typeAttr}>${body}</c>`);
 }
 
-function stripFormulasToCachedValues(sheetXml) {
-  return sheetXml.replace(/<c\b[^>]*>[\s\S]*?<\/c>/g, (cellXml) => {
-    if (!cellXml.includes("<f")) return cellXml;
-
-    const openingTag = cellXml.match(/^<c\b([^>]*)>/)?.[1] || "";
-    const value = cellXml.match(/<v>([\s\S]*?)<\/v>/)?.[1];
-    return `<c${openingTag}>${value == null ? "" : `<v>${value}</v>`}</c>`;
-  });
-}
-
 function setTemplateCell(cells, address, value) {
   cells.push([address, value]);
 }
@@ -76,21 +66,17 @@ function clearTemplateRows(cells, rows) {
   }
 }
 
-function keepOnlyOrderSheetXml(zip, workbookXml, relsXml) {
-  const firstSheet = `<sheet name="${ORDER_SHEET}" sheetId="27" r:id="rId1"/>`;
-  const nextWorkbookXml = workbookXml
-    .replace(/<sheets>[\s\S]*?<\/sheets>/, `<sheets>${firstSheet}</sheets>`)
-    .replace(/<externalReferences>[\s\S]*?<\/externalReferences>/, "");
+async function forceWorkbookRecalculation(zip) {
+  const workbookFile = zip.file("xl/workbook.xml");
+  if (!workbookFile) return;
 
-  const nextRelsXml = relsXml.replace(/<Relationship\b[^>]*\/>/g, (relationship) => {
-    const isOtherWorksheet = relationship.includes("/worksheet") && !relationship.includes('Target="worksheets/sheet1.xml"');
-    const isExternalLink = relationship.includes("/externalLink");
-    const isCalcChain = relationship.includes("/calcChain");
-    return isOtherWorksheet || isExternalLink || isCalcChain ? "" : relationship;
-  });
+  const workbookXml = await workbookFile.async("string");
+  const calcPr = '<calcPr calcMode="auto" fullCalcOnLoad="1" forceFullCalc="1"/>';
+  const nextWorkbookXml = workbookXml.includes("<calcPr")
+    ? workbookXml.replace(/<calcPr\b[^>]*\/>/, calcPr)
+    : workbookXml.replace("</workbook>", `${calcPr}</workbook>`);
 
   zip.file("xl/workbook.xml", nextWorkbookXml);
-  zip.file("xl/_rels/workbook.xml.rels", nextRelsXml);
   zip.remove("xl/calcChain.xml");
 }
 
@@ -116,6 +102,20 @@ function itemFromProduct(product, quantity) {
     quantity: qty,
     unitValue,
     total: unitValue * qty
+  };
+}
+
+function itemFromSavedDevice(row) {
+  if (!row.device_model && !row.right_device_code && !row.left_device_code) return null;
+  const quantity = row.device_side === "bilateral" ? 2 : 1;
+  const code = row.device_side === "esquerdo" ? row.left_device_code : row.right_device_code || row.left_device_code;
+  const unitValue = quantity ? currency(row.factory_value_cents) / quantity : 0;
+  return {
+    code: code || "",
+    description: row.device_model || "Aparelho auditivo",
+    quantity,
+    unitValue,
+    total: unitValue * quantity
   };
 }
 
@@ -145,6 +145,9 @@ async function buildOrderBuffer(sql, row) {
   if (selectedDevice) {
     const deviceQuantity = row.device_side === "bilateral" ? 2 : 1;
     items.push(itemFromProduct(selectedDevice, deviceQuantity));
+  } else {
+    const savedDevice = itemFromSavedDevice(row);
+    if (savedDevice) items.push(savedDevice);
   }
 
   for (const accessory of row.accessory_items || []) {
@@ -177,17 +180,13 @@ async function buildOrderBuffer(sql, row) {
   setTemplateCell(cells, "F29", total);
   setTemplateCell(cells, "F40", 0);
 
-  let sheetXml = stripFormulasToCachedValues(await sheetFile.async("string"));
+  let sheetXml = await sheetFile.async("string");
   for (const [address, value] of cells) {
     sheetXml = updateCellXml(sheetXml, address, value);
   }
 
   zip.file(ORDER_SHEET_PATH, sheetXml);
-  keepOnlyOrderSheetXml(
-    zip,
-    await zip.file("xl/workbook.xml").async("string"),
-    await zip.file("xl/_rels/workbook.xml.rels").async("string")
-  );
+  await forceWorkbookRecalculation(zip);
 
   return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
